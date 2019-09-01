@@ -153,6 +153,10 @@ SECTIONS
       BUILD_DIR/src/game/object_collision.o(.text);
       BUILD_DIR/src/game/spawn_object.o(.text);
 #endif
+      BUILD_DIR/src/net64/net64.o(.text);
+      BUILD_DIR/src/net64/message_queue.o(.text);
+      BUILD_DIR/src/net64/util.o(.text);
+      BUILD_DIR/src/net64/logging.o(.text);
 #if VERSION_US
       . += 0x40;
 #endif
@@ -322,6 +326,7 @@ SECTIONS
       BUILD_DIR/libultra.a:kdebugserver.o(.data*);
       BUILD_DIR/libultra.a:__osSyncPutChars.o(.data*);
       BUILD_DIR/libultra.a:guRotateF.o(.data);
+      BUILD_DIR/src/net64/net64.o(.data*);
       /* rodata */
       BUILD_DIR/src/game/crash_screen.o(.rodata*);
       BUILD_DIR/src/game/main.o(.rodata*);
@@ -382,6 +387,7 @@ SECTIONS
       BUILD_DIR/libultra.a:osSetIntMask.o(.rodata*);
       BUILD_DIR/libultra.a:guLookAtRef.o(.rodata*); /* Fast3DEX2 only */
       BUILD_DIR/lib/rsp.o(.rodata*);
+      BUILD_DIR/src/net64/net64.o(.rodata*);
    }
    END_SEG(main)
    BEGIN_NOLOAD(main)
@@ -436,6 +442,7 @@ SECTIONS
       BUILD_DIR/libultra.a:__osSiCreateAccessQueue.o(.bss*);
       BUILD_DIR/libultra.a:osEepromWrite.o(.bss*);
       BUILD_DIR/libultra.a:kdebugserver.o(.bss*);
+      BUILD_DIR/src/net64/net64.o(.bss*);
    }
    END_NOLOAD(main)
 
