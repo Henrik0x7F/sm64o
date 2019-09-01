@@ -131,7 +131,7 @@ TEXTURE_DIR := textures
 ACTOR_DIR := actors
 
 # Directories containing source files
-SRC_DIRS := src src/engine src/game src/audio
+SRC_DIRS := src src/engine src/game src/audio src/net64
 ASM_DIRS := asm actors lib data levels assets sound text
 BIN_DIRS := bin bin/$(VERSION)
 
