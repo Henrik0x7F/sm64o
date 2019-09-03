@@ -11,7 +11,7 @@ VERSION ?= us
 # Graphics microcode used
 GRUCODE ?= f3d_old
 # If COMPARE is 1, check the output sha1sum when building 'all'
-COMPARE ?= 1
+COMPARE ?= 0
 # If NON_MATCHING is 1, define the NON_MATCHING macro when building
 NON_MATCHING ?= 0
 # If ENDIAN_IND is 1, enable non-matching code changes that try to ensure
