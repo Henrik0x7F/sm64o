@@ -22,6 +22,14 @@
 #define NET64_RCV_MSG_QUEUE_SIZE 64
 #define NET64_SND_MSG_QUEUE_SIZE 64
 
+typedef void(*net64_custom_msg_callback_t)(const u8*, size_t);
+
+typedef struct
+{
+    u32 remain_ticks;
+    char text_buf[13];
+}Net64Overlay;
+
 /* Net64 global state */
 typedef struct
 {
@@ -35,11 +43,14 @@ typedef struct
 
     /* Pointer to global entity list */
     struct ObjectNode* object_lists;
+
+    Net64Overlay overlay;
+    net64_custom_msg_callback_t custom_msg_callback;
 }Net64State;
 
 
 /* Initialize net64 */
-s32 net64_initialize();
+s32 net64_initialize(net64_custom_msg_callback_t msg_callback);
 
 /* Check if net64 is initialized */
 s32 net64_is_initialized();
@@ -49,5 +60,8 @@ void net64_tick();
 
 /* Send data to server (NET64_MSG_DATA_LEN bytes max) */
 s32 net64_send_custom(const u8* data, size_t n);
+
+void net64_set_overlay(u16 duration, const char* text);
+void net64_clear_overlay();
 
 #endif

@@ -19,7 +19,9 @@ char* strncpy(char* destination, const char* source, size_t max_len)
 {
     size_t len = strnlen(source, max_len);
     memcpy(destination, source, len);
-    return (char*)memset(destination + len, 0, max_len - len);
+    memset(destination + len, 0, max_len - len);
+    destination[len - 1] = 0;
+    return destination;
 }
 
 size_t strnlen(const char* str, size_t max_len)

@@ -3,6 +3,7 @@
 #include "net64/util.h"
 #include "net64/logging.h"
 #include "net64/game_messages.h"
+#include "net64/client_messages.h"
 #include "game/print.h"
 #include "string.h"
 
@@ -35,10 +36,13 @@ static Net64Header net64_header_l;
 Net64State net64_state_g;
 
 
-void write_magic_num();
+static void write_magic_num();
+static void handle_client_msg(Net64Message* msg);
 
-s32 net64_initialize()
+s32 net64_initialize(net64_custom_msg_callback_t msg_callback)
 {
+    memset(&net64_state_g, 0, sizeof(net64_state_g));
+
     /* Point header pointer to header */
     NET64_HEADER_PTR = &net64_header_l;
 
@@ -62,6 +66,9 @@ s32 net64_initialize()
     net64_state_g.object_lists = gObjectListArray;
     net64_state_g.object_lists = gObjectListArray;
 
+    /* Init custom message callback */
+    net64_state_g.custom_msg_callback = msg_callback;
+
     /* We're done */
     net64_initialized_l = 1;
     write_magic_num();
@@ -74,7 +81,7 @@ s32 net64_is_initialized()
     return net64_initialized_l;
 }
 
-void print_addr(int x, int y, const void* ptr)
+static void print_addr(int x, int y, const void* ptr)
 {
     u32 addr = (u32)ptr;
 
@@ -96,17 +103,24 @@ void net64_tick()
     /* Poll for incoming messages */
     if(net64_queue_poll(&net64_state_g.receive_queue, &msg))
     {
-
+        handle_client_msg(&msg);
     }
 
 
     if(net64_show_debug_g)
     {
         /* Print debug information about the queue states to the screen */
-        print_text_fmt_int(10, 30, "client %d", net64_state_g.receive_queue.client_index);
-        print_text_fmt_int(10, 10, "game   %d", net64_state_g.receive_queue.game_index);
-        print_text_fmt_int(120, 30, "client %d", net64_state_g.send_queue.client_index);
-        print_text_fmt_int(120, 10, "game   %d", net64_state_g.send_queue.game_index);
+        print_text_fmt_int(10, 120, "client %d", net64_state_g.receive_queue.client_index);
+        print_text_fmt_int(10, 100, "game   %d", net64_state_g.receive_queue.game_index);
+        print_text_fmt_int(120, 120, "client %d", net64_state_g.send_queue.client_index);
+        print_text_fmt_int(120, 100, "game   %d", net64_state_g.send_queue.game_index);
+    }
+
+    /* Update overlay */
+    if(net64_state_g.overlay.remain_ticks > 0)
+    {
+        --net64_state_g.overlay.remain_ticks;
+        print_text(10, 10, net64_state_g.overlay.text_buf);
     }
 }
 
@@ -118,7 +132,7 @@ s32 net64_send_custom(const u8* data, size_t n)
         return 0;
 
     if(n > NET64_MSG_DATA_LEN)
-        return;
+        return 0;
 
     msg.msg_type = NET64_GAME_MSG_CUSTOM;
     memcpy(msg.msg_data, data, n);
@@ -126,7 +140,39 @@ s32 net64_send_custom(const u8* data, size_t n)
     return net64_queue_send(&net64_state_g.send_queue, &msg);
 }
 
-void write_magic_num()
+void net64_set_overlay(u16 duration, const char* text)
+{
+    net64_state_g.overlay.remain_ticks = duration;
+    strncpy(net64_state_g.overlay.text_buf, text, sizeof(net64_state_g.overlay.text_buf));
+}
+
+void net64_clear_overlay()
+{
+    net64_state_g.overlay.remain_ticks = 0;
+}
+
+static void write_magic_num()
 {
     *((u32*)NET64_MAGIC_NUMBER_ADDR) = NET64_MAGIC_NUMBER;
+}
+
+static void on_print_overlay(Net64Message* msg)
+{
+    u16 ticks;
+    memcpy(&ticks, msg->msg_data, sizeof(ticks));
+    net64_set_overlay(ticks, (char*)&msg->msg_data[2]);
+}
+
+static void handle_client_msg(Net64Message* msg)
+{
+    switch(msg->msg_type)
+    {
+        case NET64_CLIENT_MSG_CUSTOM:
+            if(net64_state_g.custom_msg_callback)
+                custom_msg_callback(msg->msg_data, NET64_MSG_DATA_LEN);
+            break;
+        case NET64_CLIENT_MSG_PRINT:
+            on_print_overlay(msg);
+            break;
+    }
 }

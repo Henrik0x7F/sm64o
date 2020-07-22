@@ -1241,9 +1241,8 @@ void squish_mario_model(struct MarioState *m) {
 void debug_print_speed_action_normal(struct MarioState*m)
 {
     if(!net64_is_initialized())
-        net64_initialize();
-
-    if(net64_is_initialized)
+        net64_initialize(NULL);
+    else
         net64_tick();
 }
 
