@@ -12,23 +12,6 @@ import sys
 TYPE_CTL = 1
 TYPE_TBL = 2
 
-SAMPLE_BANK_IDS = [
-    "nlist_0",
-    "nlist_1",
-    "nlist_2",
-    "nlist_3",
-    "nlist_4and5",
-    "nlist_6",
-    "nlist_7",
-    "nlist_8",
-    "nlist_9",
-    "nlist_A",
-    "nlist_B",
-    "nlist_extra1",
-    "nlist_extra2",
-    "nlist_extra3",
-]
-
 
 class AifcEntry:
     def __init__(self, data, book, loop):
@@ -399,7 +382,7 @@ def parse_tbl(data, entries):
     sample_bank_map = {}
     for (offset, length) in entries:
         if offset not in seen:
-            name = gen_name("sample_bank", SAMPLE_BANK_IDS)
+            name = gen_name("sample_bank")
             seen[offset] = name
             sample_bank = SampleBank(name, data[offset : offset + length], offset)
             sample_banks.append(sample_bank)
@@ -498,11 +481,16 @@ def write_aifc(entry, out):
 
 
 def write_aiff(entry, filename):
-    with tempfile.NamedTemporaryFile(suffix=".aifc") as temp:
+    temp = tempfile.NamedTemporaryFile(suffix=".aifc", delete=False)
+    try:
         write_aifc(entry, temp)
         temp.flush()
+        temp.close()
         aifc_decode = os.path.join(os.path.dirname(__file__), "aifc_decode")
         subprocess.run([aifc_decode, temp.name, filename], check=True)
+    finally:
+        temp.close()
+        os.remove(temp.name)
 
 
 # Modified from https://stackoverflow.com/a/25935321/1359139, cc by-sa 3.0

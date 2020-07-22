@@ -20,11 +20,28 @@ def read_local_asset_list(f):
 
 
 def asset_needs_update(asset, version):
+    if version <= 5 and asset == "textures/spooky/bbh_textures.00800.rgba16.png":
+        return True
+    if version <= 4 and asset in ["textures/mountain/ttm_textures.01800.rgba16.png", "textures/mountain/ttm_textures.05800.rgba16.png"]:
+        return True
+    if version <= 3 and asset == "textures/cave/hmc_textures.01800.rgba16.png":
+        return True
+    if version <= 2 and asset == "textures/inside/inside_castle_textures.09000.rgba16.png":
+        return True
     if version <= 1 and asset.endswith(".m64"):
         return True
     if version <= 0 and asset.endswith(".aiff"):
         return True
     return False
+
+
+def remove_file(fname):
+    os.remove(fname)
+    print("deleting", fname)
+    try:
+        os.removedirs(os.path.dirname(fname))
+    except OSError:
+        pass
 
 
 def clean_assets(local_asset_file):
@@ -34,7 +51,7 @@ def clean_assets(local_asset_file):
         if fname.startswith("@"):
             continue
         try:
-            os.remove(fname)
+            remove_file(fname)
         except FileNotFoundError:
             pass
 
@@ -42,7 +59,7 @@ def clean_assets(local_asset_file):
 def main():
     # In case we ever need to change formats of generated files, we keep a
     # revision ID in the local asset file.
-    new_version = 2
+    new_version = 6
 
     try:
         local_asset_file = open(".assets-local.txt")
@@ -57,7 +74,7 @@ def main():
         clean_assets(local_asset_file)
         sys.exit(0)
 
-    all_langs = ["jp", "us", "eu"]
+    all_langs = ["jp", "us", "eu", "sh"]
     if not langs or not all(a in all_langs for a in langs):
         langs_str = " ".join("[" + lang + "]" for lang in all_langs)
         print("Usage: " + sys.argv[0] + " " + langs_str)
@@ -119,8 +136,8 @@ def main():
         try:
             with open(fname, "rb") as f:
                 roms[lang] = f.read()
-        except:
-            print("Failed to open " + fname + ". Please ensure it exists!")
+        except Exception as e:
+            print("Failed to open " + fname + "! " + str(e))
             sys.exit(1)
         sha1 = hashlib.sha1(roms[lang]).hexdigest()
         with open("sm64." + lang + ".sha1", "r") as f:
@@ -133,10 +150,11 @@ def main():
                 + ", expected "
                 + expected_sha1
             )
+            sys.exit(1)
 
     # Make sure tools exist
     subprocess.check_call(
-        ["make", "-s", "-C", "tools/", "n64graphics", "mio0", "aifc_decode"]
+        ["make", "-s", "-C", "tools/", "n64graphics", "skyconv", "mio0", "aifc_decode"]
     )
 
     # Go through the assets in roughly alphabetical order (but assets in the same
@@ -148,15 +166,17 @@ def main():
         assets = todo[key]
         lang, mio0 = key
         if mio0 == "@sound":
-            with tempfile.NamedTemporaryFile(prefix="ctl") as ctl_file:
-                with tempfile.NamedTemporaryFile(prefix="tbl") as tbl_file:
+            with tempfile.NamedTemporaryFile(prefix="ctl", delete=False) as ctl_file:
+                with tempfile.NamedTemporaryFile(prefix="tbl", delete=False) as tbl_file:
                     rom = roms[lang]
                     size, locs = asset_map["@sound ctl " + lang]
                     offset = locs[lang][0]
                     ctl_file.write(rom[offset : offset + size])
+                    ctl_file.close()
                     size, locs = asset_map["@sound tbl " + lang]
                     offset = locs[lang][0]
                     tbl_file.write(rom[offset : offset + size])
+                    tbl_file.close()
                     args = [
                         "python3",
                         "tools/disassemble_sound.py",
@@ -167,7 +187,11 @@ def main():
                     for (asset, pos, size, meta) in assets:
                         print("extracting", asset)
                         args.append(asset + ":" + str(pos))
-                    subprocess.run(args, check=True)
+                    try:
+                        subprocess.run(args, check=True)
+                    finally:
+                        os.unlink(ctl_file.name)
+                        os.unlink(tbl_file.name)
             continue
 
         if mio0 is not None:
@@ -178,7 +202,7 @@ def main():
                     "-o",
                     str(mio0),
                     "baserom." + lang + ".z64",
-                    "/dev/stdout",
+                    "-",
                 ],
                 check=True,
                 stdout=subprocess.PIPE,
@@ -191,25 +215,49 @@ def main():
             input = image[pos : pos + size]
             os.makedirs(os.path.dirname(asset), exist_ok=True)
             if asset.endswith(".png"):
-                w, h = meta
-                fmt = asset.split(".")[-2]
-                subprocess.run(
-                    [
-                        "./tools/n64graphics",
-                        "-e",
-                        "/dev/stdin",
-                        "-g",
-                        asset,
-                        "-f",
-                        fmt,
-                        "-w",
-                        str(w),
-                        "-h",
-                        str(h),
-                    ],
-                    input=input,
-                    check=True,
-                )
+                png_file = tempfile.NamedTemporaryFile(prefix="asset", delete=False)
+                try:
+                    png_file.write(input)
+                    png_file.flush()
+                    png_file.close()
+                    if asset.startswith("textures/skyboxes/") or asset.startswith("levels/ending/cake"):
+                        if asset.startswith("textures/skyboxes/"):
+                            imagetype = "sky"
+                        else:
+                            imagetype =  "cake" + ("-eu" if "eu" in asset else "")
+                        subprocess.run(
+                            [
+                                "./tools/skyconv",
+                                "--type",
+                                imagetype,
+                                "--combine",
+                                png_file.name,
+                                asset,
+                            ],
+                            check=True,
+                        )
+                    else:
+                        w, h = meta
+                        fmt = asset.split(".")[-2]
+                        subprocess.run(
+                            [
+                                "./tools/n64graphics",
+                                "-e",
+                                png_file.name,
+                                "-g",
+                                asset,
+                                "-f",
+                                fmt,
+                                "-w",
+                                str(w),
+                                "-h",
+                                str(h),
+                            ],
+                            check=True,
+                        )
+                finally:
+                    png_file.close()
+                    os.remove(png_file.name)
             else:
                 with open(asset, "wb") as f:
                     f.write(input)
@@ -218,8 +266,7 @@ def main():
     for asset in previous_assets:
         if asset not in new_assets:
             try:
-                print("deleting", asset)
-                os.remove(asset)
+                remove_file(asset)
             except FileNotFoundError:
                 pass
 

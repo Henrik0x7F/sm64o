@@ -17,24 +17,33 @@ pipeline {
         sh './extract_assets.py jp us eu'
       }
     }
-    stage('Build J Source') {
-      steps {
-        sh 'make -j4 VERSION=jp'
-      }
-    }
     stage('Build U Source') {
       steps {
         sh 'make -j4 VERSION=us'
       }
     }
-    stage('Build J Source, NON_MATCHING') {
+    stage('Build E Source') {
       steps {
-        sh 'make -j4 VERSION=jp NON_MATCHING=1'
+        sh 'make -j4 VERSION=eu'
       }
     }
-    stage('Build U Source, NON_MATCHING') {
+    stage('Build J Source') {
       steps {
-        sh 'make -j4 VERSION=us NON_MATCHING=1'
+        sh 'make -j4 VERSION=jp'
+      }
+    }
+    stage('Test Enhancements') {
+      steps {
+        sh '''
+          set -e
+          for f in enhancements/*.patch
+          do
+            git clean -fd .
+            git checkout -- .
+            echo 'y' | tools/apply_patch.sh "$f"
+            make -j4 VERSION=us COMPARE=0
+          done
+        '''
       }
     }
   }

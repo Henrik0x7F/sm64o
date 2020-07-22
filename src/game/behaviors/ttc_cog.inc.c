@@ -7,7 +7,7 @@
 /**
  * Collision model for hexagon and triangle, respectively.
  */
-static void *sTTCCogCollisionModels[] = {
+static Collision const *sTTCCogCollisionModels[] = {
     ttc_seg7_collision_07015584,
     ttc_seg7_collision_07015650,
 };
@@ -43,7 +43,7 @@ void bhv_ttc_cog_update(void) {
 
         case TTC_SPEED_RANDOM:
             if (approach_f32_ptr(&o->oTTCCogSpeed, o->oTTCCogTargetVel, 50.0f)) {
-                o->oTTCCogTargetVel = 200.0f * (RandomU16() % 7) * RandomSign();
+                o->oTTCCogTargetVel = 200.0f * (random_u16() % 7) * random_sign();
             }
 
         case TTC_SPEED_STOPPED:

@@ -1,9 +1,10 @@
-#include <ultra64.h>
-#include <macros.h>
+#include <PR/ultratypes.h>
+
+#include "debug_utils.h"
 #include "gd_main.h"
 #include "gd_memory.h"
+#include "macros.h"
 #include "objects.h"
-#include "debug_utils.h"
 #include "renderer.h"
 
 /* This file was spilt out of debug_memory.asm based on rodata.
@@ -27,7 +28,7 @@ struct GdControl gGdCtrlPrev; // @ 801B9A18; previous frame's controller info
 u32 __main__(void) {
     UNUSED u32 pad1C;
 
-    gd_printf("%x, %x\n", (u32) &D_801A8058, (u32) &gGdMoveScene);
+    gd_printf("%x, %x\n", (u32) (uintptr_t) &D_801A8058, (u32) (uintptr_t) &gGdMoveScene);
     add_to_stacktrace("main");
     gd_init();
 

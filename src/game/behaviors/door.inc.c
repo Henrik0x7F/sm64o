@@ -1,70 +1,78 @@
 // door.c.inc
 
-s32 D_8032F300[][2] = { { 0x40000, 3 }, { 0x80000, 4 }, { 0x10000, 1 }, { 0x20000, 2 }, { -1, 0 } };
+struct DoorAction
+{
+    u32 flag;
+    s32 action;
+};
 
-s32 D_8032F328[] = { SOUND_GENERAL_OPENWOODDOOR, SOUND_GENERAL_OPENIRONDOOR };
+struct DoorAction D_8032F300[] = { { 0x40000, 3 }, { 0x80000, 4 }, { 0x10000, 1 }, { 0x20000, 2 }, { -1, 0 }, };
 
-s32 D_8032F330[] = { SOUND_GENERAL_CLOSEWOODDOOR, SOUND_GENERAL_CLOSEIRONDOOR };
+s32 D_8032F328[] = { SOUND_GENERAL_OPEN_WOOD_DOOR, SOUND_GENERAL_OPEN_IRON_DOOR };
 
-void func_802AC070(s32 sp18) {
-    set_obj_animation_and_sound_state(sp18);
-    if (func_8029F788())
+s32 D_8032F330[] = { SOUND_GENERAL_CLOSE_WOOD_DOOR, SOUND_GENERAL_CLOSE_IRON_DOOR };
+
+void door_animation_and_reset(s32 sp18) {
+    cur_obj_init_animation_with_sound(sp18);
+    if (cur_obj_check_if_near_animation_end())
         o->oAction = 0;
 }
 
-void func_802AC0B8(void) {
+void set_door_camera_event(void) {
     if (segmented_to_virtual(bhvDoor) == o->behavior)
-        gPlayerStatusForCamera->unk1C[1] = 6;
+        gPlayerCameraState->cameraEvent = CAM_EVENT_DOOR;
     else
-        gPlayerStatusForCamera->unk1C[1] = 5;
-    gPlayerStatusForCamera->usedObj = o;
+        gPlayerCameraState->cameraEvent = CAM_EVENT_DOOR_WARP;
+    gPlayerCameraState->usedObj = o;
 }
 
-void func_802AC130(void) {
-    s32 sp1C = obj_has_model(MODEL_HMC_METAL_DOOR);
+void play_door_open_noise(void) {
+    s32 sp1C = cur_obj_has_model(MODEL_HMC_METAL_DOOR);
     if (o->oTimer == 0) {
-        PlaySound2(D_8032F328[sp1C]);
+        cur_obj_play_sound_2(D_8032F328[sp1C]);
         gTimeStopState |= TIME_STOP_MARIO_OPENED_DOOR;
     }
     if (o->oTimer == 70) {
-        PlaySound2(D_8032F330[sp1C]);
+        cur_obj_play_sound_2(D_8032F330[sp1C]);
     }
 }
 
-void func_802AC1CC(void) {
-    s32 sp1C = obj_has_model(MODEL_HMC_METAL_DOOR);
+void play_warp_door_open_noise(void) {
+    s32 sp1C = cur_obj_has_model(MODEL_HMC_METAL_DOOR);
     if (o->oTimer == 30)
-        PlaySound2(D_8032F330[sp1C]);
+        cur_obj_play_sound_2(D_8032F330[sp1C]);
 }
 
 void bhv_door_loop(void) {
     s32 sp1C = 0;
-    while (D_8032F300[sp1C][0] != -1) {
-        if (obj_clear_interact_status_flag(D_8032F300[sp1C][0])) {
-            func_802AC0B8();
-            obj_change_action(D_8032F300[sp1C][1]);
+    
+    while (D_8032F300[sp1C].flag != (u32)~0) {
+        if (cur_obj_clear_interact_status_flag(D_8032F300[sp1C].flag)) {
+            set_door_camera_event();
+            cur_obj_change_action(D_8032F300[sp1C].action);
         }
         sp1C++;
     }
+
     switch (o->oAction) {
         case 0:
-            set_obj_animation_and_sound_state(0);
+            cur_obj_init_animation_with_sound(0);
             break;
         case 1:
-            func_802AC070(1);
-            func_802AC130();
+            door_animation_and_reset(1);
+            play_door_open_noise();
             break;
         case 2:
-            func_802AC070(2);
-            func_802AC130();
+            door_animation_and_reset(2);
+            play_door_open_noise();
             break;
         case 3:
-            func_802AC070(3);
-            func_802AC1CC();
+            door_animation_and_reset(3);
+            play_warp_door_open_noise();
             break;
         case 4:
-            func_802AC070(4);
-            func_802AC1CC();
+            door_animation_and_reset(4);
+            play_warp_door_open_noise();
             break;
     }
     if (o->oAction == 0)
@@ -78,54 +86,54 @@ void bhv_door_init(void) {
     struct Surface *floor;
     find_floor(x, o->oPosY, z, &floor);
     if (floor != NULL) {
-        o->OBJECT_FIELD_S32(0x1C) = floor->room;
+        o->oDoorUnkF8 = floor->room;
     }
 
     x = o->oPosX + sins(o->oMoveAngleYaw) * 200.0f;
     z = o->oPosZ + coss(o->oMoveAngleYaw) * 200.0f;
     find_floor(x, o->oPosY, z, &floor);
     if (floor != NULL) {
-        o->OBJECT_FIELD_S32(0x1D) = floor->room;
+        o->oDoorUnkFC = floor->room;
     }
 
     x = o->oPosX + sins(o->oMoveAngleYaw) * -200.0f;
     z = o->oPosZ + coss(o->oMoveAngleYaw) * -200.0f;
     find_floor(x, o->oPosY, z, &floor);
     if (floor != NULL) {
-        o->OBJECT_FIELD_S32(0x1E) = floor->room;
+        o->oDoorUnk100 = floor->room;
     }
 
-    if (o->OBJECT_FIELD_S32(0x1C) > 0 && o->OBJECT_FIELD_S32(0x1C) < 60) {
-        gDoorAdjacentRooms[o->OBJECT_FIELD_S32(0x1C)][0] = o->OBJECT_FIELD_S32(0x1D);
-        gDoorAdjacentRooms[o->OBJECT_FIELD_S32(0x1C)][1] = o->OBJECT_FIELD_S32(0x1E);
+    if (o->oDoorUnkF8 > 0 && o->oDoorUnkF8 < 60) {
+        gDoorAdjacentRooms[o->oDoorUnkF8][0] = o->oDoorUnkFC;
+        gDoorAdjacentRooms[o->oDoorUnkF8][1] = o->oDoorUnk100;
     }
 }
 
 void bhv_star_door_loop_2(void) {
     s32 sp4 = 0;
     if (gMarioCurrentRoom != 0) {
-        if (o->OBJECT_FIELD_S32(0x1C) == gMarioCurrentRoom)
+        if (o->oDoorUnkF8 == gMarioCurrentRoom)
             sp4 = 1;
-        else if (gMarioCurrentRoom == o->OBJECT_FIELD_S32(0x1D))
+        else if (gMarioCurrentRoom == o->oDoorUnkFC)
             sp4 = 1;
-        else if (gMarioCurrentRoom == o->OBJECT_FIELD_S32(0x1E))
+        else if (gMarioCurrentRoom == o->oDoorUnk100)
             sp4 = 1;
-        else if (gDoorAdjacentRooms[gMarioCurrentRoom][0] == o->OBJECT_FIELD_S32(0x1D))
+        else if (gDoorAdjacentRooms[gMarioCurrentRoom][0] == o->oDoorUnkFC)
             sp4 = 1;
-        else if (gDoorAdjacentRooms[gMarioCurrentRoom][0] == o->OBJECT_FIELD_S32(0x1E))
+        else if (gDoorAdjacentRooms[gMarioCurrentRoom][0] == o->oDoorUnk100)
             sp4 = 1;
-        else if (gDoorAdjacentRooms[gMarioCurrentRoom][1] == o->OBJECT_FIELD_S32(0x1D))
+        else if (gDoorAdjacentRooms[gMarioCurrentRoom][1] == o->oDoorUnkFC)
             sp4 = 1;
-        else if (gDoorAdjacentRooms[gMarioCurrentRoom][1] == o->OBJECT_FIELD_S32(0x1E))
+        else if (gDoorAdjacentRooms[gMarioCurrentRoom][1] == o->oDoorUnk100)
             sp4 = 1;
     } else
         sp4 = 1;
     if (sp4 == 1) {
-        o->header.gfx.node.flags |= 1;
+        o->header.gfx.node.flags |= GRAPH_RENDER_ACTIVE;
         D_8035FEE4++;
     }
     if (sp4 == 0) {
-        o->header.gfx.node.flags &= ~1;
+        o->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;
     }
-    o->oUnknownUnk88 = sp4;
+    o->oDoorUnk88 = sp4;
 }

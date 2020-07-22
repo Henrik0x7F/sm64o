@@ -4,24 +4,24 @@ void bhv_horizontal_grindel_init(void) {
 }
 
 void bhv_horizontal_grindel_update(void) {
-    if (o->oMoveFlags & 0x00000003) {
+    if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
         if (!o->oHorizontalGrindelOnGround) {
-            PlaySound2(SOUND_OBJECT_THWOMP);
+            cur_obj_play_sound_2(SOUND_OBJ_THWOMP);
             o->oHorizontalGrindelOnGround = TRUE;
-            func_8027F440(1, o->oPosX, o->oPosY, o->oPosZ);
+            set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
 
-            o->oHorizontalGrindelDistToHome = obj_lateral_dist_to_home();
+            o->oHorizontalGrindelDistToHome = cur_obj_lateral_dist_to_home();
             o->oForwardVel = 0.0f;
             o->oTimer = 0;
         }
 
-        if (obj_rotate_yaw_toward(o->oHorizontalGrindelTargetYaw, 0x400)) {
+        if (cur_obj_rotate_yaw_toward(o->oHorizontalGrindelTargetYaw, 0x400)) {
             if (o->oTimer > 60) {
                 if (o->oHorizontalGrindelDistToHome > 300.0f) {
                     o->oHorizontalGrindelTargetYaw += 0x8000;
                     o->oHorizontalGrindelDistToHome = 0.0f;
                 } else {
-                    PlaySound2(SOUND_OBJECT_KINGBOBOMBJUMP);
+                    cur_obj_play_sound_2(SOUND_OBJ_KING_BOBOMB_JUMP);
                     o->oForwardVel = 11.0f;
                     o->oVelY = 70.0f;
                     o->oGravity = -4.0f;
@@ -39,5 +39,5 @@ void bhv_horizontal_grindel_update(void) {
     }
 
     o->oFaceAngleYaw = o->oMoveAngleYaw + 0x4000;
-    obj_move_standard(78);
+    cur_obj_move_standard(78);
 }

@@ -1,46 +1,51 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
-#include "interaction.h"
-#include "camera.h"
-#include "level_update.h"
-#include "engine/math_util.h"
-#include "memory.h"
 #include "area.h"
-#include "save_file.h"
+#include "actors/common1.h"
+#include "audio/external.h"
+#include "behavior_actions.h"
+#include "behavior_data.h"
+#include "camera.h"
+#include "course_table.h"
+#include "dialog_ids.h"
+#include "engine/math_util.h"
 #include "engine/surface_collision.h"
-#include "sound_init.h"
-#include "display.h"
+#include "game_init.h"
+#include "interaction.h"
+#include "level_update.h"
 #include "mario.h"
+#include "mario_step.h"
+#include "memory.h"
 #include "obj_behaviors.h"
 #include "object_helpers.h"
-#include "behavior_actions.h"
-#include "audio/external.h"
-#include "behavior_data.h"
+#include "save_file.h"
+#include "seq_ids.h"
+#include "sm64.h"
+#include "sound_init.h"
+#include "thread6.h"
 
-#define INT_GROUND_POUND_OR_TWIRL (1 << 0) // 0x00000001
-#define INT_PUNCH (1 << 1)                 // 0x00000002
-#define INT_KICK (1 << 2)                  // 0x00000004
-#define INT_TRIP (1 << 3)                  // 0x00000008
-#define INT_SLIDE_KICK (1 << 4)            // 0x00000010
-#define INT_FAST_ATTACK_OR_SHELL (1 << 5)  // 0x00000020
-#define INT_HIT_FROM_ABOVE (1 << 6)        // 0x00000040
-#define INT_HIT_FROM_BELOW (1 << 7)        // 0x00000080
+#define INT_GROUND_POUND_OR_TWIRL (1 << 0) // 0x01
+#define INT_PUNCH                 (1 << 1) // 0x02
+#define INT_KICK                  (1 << 2) // 0x04
+#define INT_TRIP                  (1 << 3) // 0x08
+#define INT_SLIDE_KICK            (1 << 4) // 0x10
+#define INT_FAST_ATTACK_OR_SHELL  (1 << 5) // 0x20
+#define INT_HIT_FROM_ABOVE        (1 << 6) // 0x40
+#define INT_HIT_FROM_BELOW        (1 << 7) // 0x80
 
-#define INT_ATTACK_NOT_FROM_BELOW                                                                      \
-    (INT_GROUND_POUND_OR_TWIRL | INT_PUNCH | INT_KICK | INT_TRIP | INT_SLIDE_KICK                      \
+#define INT_ATTACK_NOT_FROM_BELOW                                                 \
+    (INT_GROUND_POUND_OR_TWIRL | INT_PUNCH | INT_KICK | INT_TRIP | INT_SLIDE_KICK \
      | INT_FAST_ATTACK_OR_SHELL | INT_HIT_FROM_ABOVE)
 
-#define INT_ANY_ATTACK                                                                                 \
-    (INT_GROUND_POUND_OR_TWIRL | INT_PUNCH | INT_KICK | INT_TRIP | INT_SLIDE_KICK                      \
+#define INT_ANY_ATTACK                                                            \
+    (INT_GROUND_POUND_OR_TWIRL | INT_PUNCH | INT_KICK | INT_TRIP | INT_SLIDE_KICK \
      | INT_FAST_ATTACK_OR_SHELL | INT_HIT_FROM_ABOVE | INT_HIT_FROM_BELOW)
 
-#define INT_ATTACK_MASK_UNKNOWN_8F                                                                     \
+#define INT_ATTACK_NOT_WEAK_FROM_ABOVE                                                \
     (INT_GROUND_POUND_OR_TWIRL | INT_PUNCH | INT_KICK | INT_TRIP | INT_HIT_FROM_BELOW)
 
 u8 sDelayInvincTimer;
 s16 sInvulnerable;
-extern u8 warp_pipe_seg3_collision_03009AC8[];
 u32 interact_coin(struct MarioState *, u32, struct Object *);
 u32 interact_water_ring(struct MarioState *, u32, struct Object *);
 u32 interact_star_or_key(struct MarioState *, u32, struct Object *);
@@ -52,7 +57,7 @@ u32 interact_cannon_base(struct MarioState *, u32, struct Object *);
 u32 interact_igloo_barrier(struct MarioState *, u32, struct Object *);
 u32 interact_tornado(struct MarioState *, u32, struct Object *);
 u32 interact_whirlpool(struct MarioState *, u32, struct Object *);
-u32 interact_wind(struct MarioState *, u32, struct Object *);
+u32 interact_strong_wind(struct MarioState *, u32, struct Object *);
 u32 interact_flame(struct MarioState *, u32, struct Object *);
 u32 interact_snufit_bullet(struct MarioState *, u32, struct Object *);
 u32 interact_clam_or_bubba(struct MarioState *, u32, struct Object *);
@@ -77,55 +82,58 @@ struct InteractionHandler {
 };
 
 static struct InteractionHandler sInteractionHandlers[] = {
-    { INTERACT_COIN, interact_coin },
-    { INTERACT_WATER_RING, interact_water_ring },
-    { INTERACT_STAR_OR_KEY, interact_star_or_key },
-    { INTERACT_BBH_ENTRANCE, interact_bbh_entrance },
-    { INTERACT_WARP, interact_warp },
-    { INTERACT_WARP_DOOR, interact_warp_door },
-    { INTERACT_DOOR, interact_door },
-    { INTERACT_CANNON_BASE, interact_cannon_base },
-    { INTERACT_IGLOO_BARRIER, interact_igloo_barrier },
-    { INTERACT_TORNADO, interact_tornado },
-    { INTERACT_WHIRLPOOL, interact_whirlpool },
-    { INTERACT_WIND, interact_wind },
-    { INTERACT_FLAME, interact_flame },
-    { INTERACT_SNUFIT_BULLET, interact_snufit_bullet },
-    { INTERACT_CLAM_OR_BUBBA, interact_clam_or_bubba },
-    { INTERACT_BULLY, interact_bully },
-    { INTERACT_SHOCK, interact_shock },
-    { INTERACT_TRAP_TURN, interact_bounce_top },
-    { INTERACT_MR_BLIZZARD, interact_mr_blizzard },
+    { INTERACT_COIN,           interact_coin },
+    { INTERACT_WATER_RING,     interact_water_ring },
+    { INTERACT_STAR_OR_KEY,    interact_star_or_key },
+    { INTERACT_BBH_ENTRANCE,   interact_bbh_entrance },
+    { INTERACT_WARP,           interact_warp },
+    { INTERACT_WARP_DOOR,      interact_warp_door },
+    { INTERACT_DOOR,           interact_door },
+    { INTERACT_CANNON_BASE,    interact_cannon_base },
+    { INTERACT_IGLOO_BARRIER,  interact_igloo_barrier },
+    { INTERACT_TORNADO,        interact_tornado },
+    { INTERACT_WHIRLPOOL,      interact_whirlpool },
+    { INTERACT_STRONG_WIND,    interact_strong_wind },
+    { INTERACT_FLAME,          interact_flame },
+    { INTERACT_SNUFIT_BULLET,  interact_snufit_bullet },
+    { INTERACT_CLAM_OR_BUBBA,  interact_clam_or_bubba },
+    { INTERACT_BULLY,          interact_bully },
+    { INTERACT_SHOCK,          interact_shock },
+    { INTERACT_BOUNCE_TOP2,    interact_bounce_top },
+    { INTERACT_MR_BLIZZARD,    interact_mr_blizzard },
     { INTERACT_HIT_FROM_BELOW, interact_hit_from_below },
-    { INTERACT_BOUNCE_TOP, interact_bounce_top },
-    { INTERACT_DAMAGE, interact_damage },
-    { INTERACT_POLE, interact_pole },
-    { INTERACT_HOOT, interact_hoot },
-    { INTERACT_BREAKABLE, interact_breakable },
-    { INTERACT_KOOPA, interact_bounce_top },
-    { INTERACT_KOOPA_SHELL, interact_koopa_shell },
-    { INTERACT_UNKNOWN_08, interact_unknown_08 },
-    { INTERACT_CAP, interact_cap },
-    { INTERACT_GRABBABLE, interact_grabbable },
-    { INTERACT_TEXT, interact_text },
+    { INTERACT_BOUNCE_TOP,     interact_bounce_top },
+    { INTERACT_DAMAGE,         interact_damage },
+    { INTERACT_POLE,           interact_pole },
+    { INTERACT_HOOT,           interact_hoot },
+    { INTERACT_BREAKABLE,      interact_breakable },
+    { INTERACT_KOOPA,          interact_bounce_top },
+    { INTERACT_KOOPA_SHELL,    interact_koopa_shell },
+    { INTERACT_UNKNOWN_08,     interact_unknown_08 },
+    { INTERACT_CAP,            interact_cap },
+    { INTERACT_GRABBABLE,      interact_grabbable },
+    { INTERACT_TEXT,           interact_text },
 };
 
 static u32 sForwardKnockbackActions[][3] = {
     { ACT_SOFT_FORWARD_GROUND_KB, ACT_FORWARD_GROUND_KB, ACT_HARD_FORWARD_GROUND_KB },
-    { ACT_FORWARD_AIR_KB, ACT_FORWARD_AIR_KB, ACT_HARD_FORWARD_AIR_KB },
-    { ACT_FORWARD_WATER_KB, ACT_FORWARD_WATER_KB, ACT_FORWARD_WATER_KB },
+    { ACT_FORWARD_AIR_KB,         ACT_FORWARD_AIR_KB,    ACT_HARD_FORWARD_AIR_KB },
+    { ACT_FORWARD_WATER_KB,       ACT_FORWARD_WATER_KB,  ACT_FORWARD_WATER_KB },
 };
 
 static u32 sBackwardKnockbackActions[][3] = {
     { ACT_SOFT_BACKWARD_GROUND_KB, ACT_BACKWARD_GROUND_KB, ACT_HARD_BACKWARD_GROUND_KB },
-    { ACT_BACKWARD_AIR_KB, ACT_BACKWARD_AIR_KB, ACT_HARD_BACKWARD_AIR_KB },
-    { ACT_BACKWARD_WATER_KB, ACT_BACKWARD_WATER_KB, ACT_BACKWARD_WATER_KB },
+    { ACT_BACKWARD_AIR_KB,         ACT_BACKWARD_AIR_KB,    ACT_HARD_BACKWARD_AIR_KB },
+    { ACT_BACKWARD_WATER_KB,       ACT_BACKWARD_WATER_KB,  ACT_BACKWARD_WATER_KB },
 };
 
 static u8 sDisplayingDoorText = FALSE;
 static u8 sJustTeleported = FALSE;
 static u8 sPssSlideStarted = FALSE;
 
+/**
+ * Returns the type of hat Mario is wearing.
+ */
 u32 get_mario_cap_flag(struct Object *capObject) {
     void *script = virtual_to_segmented(0x13, capObject->behavior);
 
@@ -141,7 +149,10 @@ u32 get_mario_cap_flag(struct Object *capObject) {
 
     return 0;
 }
-
+/**
+ * Returns true if the passed in object has a moving angle yaw
+ * in the angular range given towards Mario.
+ */
 u32 object_facing_mario(struct MarioState *m, struct Object *o, s16 angleRange) {
     f32 dx = m->pos[0] - o->oPosX;
     f32 dz = m->pos[2] - o->oPosZ;
@@ -156,32 +167,39 @@ u32 object_facing_mario(struct MarioState *m, struct Object *o, s16 angleRange) 
     return FALSE;
 }
 
-s16 mario_angle_to_object(struct MarioState *m, struct Object *o) {
+s16 mario_obj_angle_to_object(struct MarioState *m, struct Object *o) {
     f32 dx = o->oPosX - m->pos[0];
     f32 dz = o->oPosZ - m->pos[2];
 
     return atan2s(dz, dx);
 }
 
+/**
+ * Determines Mario's interaction with a given object depending on their proximity,
+ * action, speed, and position.
+ */
 u32 determine_interaction(struct MarioState *m, struct Object *o) {
     u32 interaction = 0;
     u32 action = m->action;
 
     if (action & ACT_FLAG_ATTACKING) {
         if (action == ACT_PUNCHING || action == ACT_MOVE_PUNCHING || action == ACT_JUMP_KICK) {
-            s16 dYawToObject = mario_angle_to_object(m, o) - m->faceAngle[1];
+            s16 dYawToObject = mario_obj_angle_to_object(m, o) - m->faceAngle[1];
 
             if (m->flags & MARIO_PUNCHING) {
+                // 120 degrees total, or 60 each way
                 if (-0x2AAA <= dYawToObject && dYawToObject <= 0x2AAA) {
                     interaction = INT_PUNCH;
                 }
             }
             if (m->flags & MARIO_KICKING) {
+                // 120 degrees total, or 60 each way
                 if (-0x2AAA <= dYawToObject && dYawToObject <= 0x2AAA) {
                     interaction = INT_KICK;
                 }
             }
             if (m->flags & MARIO_TRIPPING) {
+                // 180 degrees total, or 90 each way
                 if (-0x4000 <= dYawToObject && dYawToObject <= 0x4000) {
                     interaction = INT_TRIP;
                 }
@@ -191,6 +209,10 @@ u32 determine_interaction(struct MarioState *m, struct Object *o) {
                 interaction = INT_GROUND_POUND_OR_TWIRL;
             }
         } else if (action == ACT_GROUND_POUND_LAND || action == ACT_TWIRL_LAND) {
+            // Neither ground pounding nor twirling change Mario's vertical speed on landing.,
+            // so the speed check is nearly always true (perhaps not if you land while going upwards?)
+            // Additionally, actionState it set on each first thing in their action, so this is
+            // only true prior to the very first frame (i.e. active 1 frame prior to it run).
             if (m->vel[1] < 0.0f && m->actionState == 0) {
                 interaction = INT_GROUND_POUND_OR_TWIRL;
             }
@@ -203,6 +225,9 @@ u32 determine_interaction(struct MarioState *m, struct Object *o) {
         }
     }
 
+    // Prior to this, the interaction type could be overwritten. This requires, however,
+    // that the interaction not be set prior. This specifically overrides turning a ground
+    // pound into just a bounce.
     if (interaction == 0 && (action & ACT_FLAG_AIR)) {
         if (m->vel[1] < 0.0f) {
             if (m->pos[1] > o->oPosY) {
@@ -218,6 +243,9 @@ u32 determine_interaction(struct MarioState *m, struct Object *o) {
     return interaction;
 }
 
+/**
+ * Sets the interaction types for INT_STATUS_INTERACTED, INT_STATUS_WAS_ATTACKED
+ */
 u32 attack_object(struct Object *o, s32 interaction) {
     u32 attackType = 0;
 
@@ -259,7 +287,7 @@ void mario_stop_riding_object(struct MarioState *m) {
 void mario_grab_used_object(struct MarioState *m) {
     if (m->heldObj == NULL) {
         m->heldObj = m->usedObj;
-        set_object_held_state(m->heldObj, bhvCarrySomething3);
+        obj_set_held_state(m->heldObj, bhvCarrySomething3);
     }
 }
 
@@ -269,11 +297,14 @@ void mario_drop_held_object(struct MarioState *m) {
             stop_shell_music();
         }
 
-        set_object_held_state(m->heldObj, bhvCarrySomething4);
+        obj_set_held_state(m->heldObj, bhvCarrySomething4);
 
-        m->heldObj->oPosX = m->marioBodyState->unk18[0];
+        // ! When dropping an object instead of throwing it, it will be put at Mario's
+        // y-positon instead of the HOLP's y-position. This fact is often exploited when
+        // cloning objects.
+        m->heldObj->oPosX = m->marioBodyState->heldObjLastPosition[0];
         m->heldObj->oPosY = m->pos[1];
-        m->heldObj->oPosZ = m->marioBodyState->unk18[2];
+        m->heldObj->oPosZ = m->marioBodyState->heldObjLastPosition[2];
 
         m->heldObj->oMoveAngleYaw = m->faceAngle[1];
 
@@ -287,11 +318,11 @@ void mario_throw_held_object(struct MarioState *m) {
             stop_shell_music();
         }
 
-        set_object_held_state(m->heldObj, bhvCarrySomething5);
+        obj_set_held_state(m->heldObj, bhvCarrySomething5);
 
-        m->heldObj->oPosX = m->marioBodyState->unk18[0] + 32.0f * sins(m->faceAngle[1]);
-        m->heldObj->oPosY = m->marioBodyState->unk18[1];
-        m->heldObj->oPosZ = m->marioBodyState->unk18[2] + 32.0f * coss(m->faceAngle[1]);
+        m->heldObj->oPosX = m->marioBodyState->heldObjLastPosition[0] + 32.0f * sins(m->faceAngle[1]);
+        m->heldObj->oPosY = m->marioBodyState->heldObjLastPosition[1];
+        m->heldObj->oPosZ = m->marioBodyState->heldObjLastPosition[2] + 32.0f * coss(m->faceAngle[1]);
 
         m->heldObj->oMoveAngleYaw = m->faceAngle[1];
 
@@ -398,7 +429,7 @@ u32 mario_check_object_grab(struct MarioState *m) {
                 result = set_mario_action(m, ACT_PICKING_UP_BOWSER, 0);
             }
         } else {
-            s16 facingDYaw = mario_angle_to_object(m, m->interactObj) - m->faceAngle[1];
+            s16 facingDYaw = mario_obj_angle_to_object(m, m->interactObj) - m->faceAngle[1];
             if (facingDYaw >= -0x2AAA && facingDYaw <= 0x2AAA) {
                 m->usedObj = m->interactObj;
 
@@ -486,17 +517,17 @@ void bounce_off_object(struct MarioState *m, struct Object *o, f32 velY) {
 
     m->flags &= ~MARIO_UNKNOWN_08;
 
-    play_sound(SOUND_ACTION_UNKNOWN459, m->marioObj->header.gfx.cameraToObject);
+    play_sound(SOUND_ACTION_BOUNCE_OFF_OBJECT, m->marioObj->header.gfx.cameraToObject);
 }
 
 void hit_object_from_below(struct MarioState *m, UNUSED struct Object *o) {
     m->vel[1] = 0.0f;
-    set_camera_shake(SHAKE_HIT_FROM_BELOW);
+    set_camera_shake_from_hit(SHAKE_HIT_FROM_BELOW);
 }
 
 static u32 unused_determine_knockback_action(struct MarioState *m) {
     u32 bonkAction;
-    s16 angleToObject = mario_angle_to_object(m, m->interactObj);
+    s16 angleToObject = mario_obj_angle_to_object(m, m->interactObj);
     s16 facingDYaw = angleToObject - m->faceAngle[1];
 
     if (m->forwardVel < 16.0f) {
@@ -530,7 +561,7 @@ u32 determine_knockback_action(struct MarioState *m, UNUSED s32 arg) {
     s16 terrainIndex = 0; // 1 = air, 2 = water, 0 = default
     s16 strengthIndex = 0;
 
-    s16 angleToObject = mario_angle_to_object(m, m->interactObj);
+    s16 angleToObject = mario_obj_angle_to_object(m, m->interactObj);
     s16 facingDYaw = angleToObject - m->faceAngle[1];
     s16 remainingHealth = m->health - 0x40 * m->hurtCounter;
 
@@ -607,7 +638,7 @@ void push_mario_out_of_object(struct MarioState *m, struct Object *o, f32 paddin
 
         find_floor(newMarioX, m->pos[1], newMarioZ, &floor);
         if (floor != NULL) {
-            //! Doesn't update mario's referenced floor (allows oob death when
+            //! Doesn't update Mario's referenced floor (allows oob death when
             // an object pushes you into a steep slope while in a ground action)
             m->pos[0] = newMarioX;
             m->pos[2] = newMarioZ;
@@ -627,16 +658,16 @@ void bounce_back_from_attack(struct MarioState *m, u32 interaction) {
             mario_set_forward_vel(m, -48.0f);
         }
 
-        set_camera_shake(SHAKE_ATTACK);
-        m->particleFlags |= 0x00040000;
+        set_camera_shake_from_hit(SHAKE_ATTACK);
+        m->particleFlags |= PARTICLE_TRIANGLE;
     }
 
     if (interaction & (INT_PUNCH | INT_KICK | INT_TRIP | INT_FAST_ATTACK_OR_SHELL)) {
-        play_sound(SOUND_ACTION_UNKNOWN444_2, m->marioObj->header.gfx.cameraToObject);
+        play_sound(SOUND_ACTION_HIT_2, m->marioObj->header.gfx.cameraToObject);
     }
 }
 
-u32 func_8024D664(struct MarioState *m, struct Object *o) {
+u32 should_push_or_pull_door(struct MarioState *m, struct Object *o) {
     f32 dx = o->oPosX - m->pos[0];
     f32 dz = o->oPosZ - m->pos[2];
 
@@ -667,7 +698,10 @@ u32 take_damage_from_interact_object(struct MarioState *m) {
 
     m->hurtCounter += 4 * damage;
 
-    set_camera_shake(shake);
+#ifdef VERSION_SH
+    queue_rumble_data(5, 80);
+#endif
+    set_camera_shake_from_hit(shake);
     return damage;
 }
 
@@ -699,7 +733,7 @@ u32 take_damage_and_knock_back(struct MarioState *m, struct Object *o) {
 
 void reset_mario_pitch(struct MarioState *m) {
     if (m->action == ACT_WATER_JUMP || m->action == ACT_SHOT_FROM_CANNON || m->action == ACT_FLYING) {
-        func_80285BD8(m->area->camera, m->area->camera->defPreset, 1);
+        set_camera_mode(m->area->camera, m->area->camera->defMode, 1);
         m->faceAngle[0] = 0;
     }
 }
@@ -712,8 +746,13 @@ u32 interact_coin(struct MarioState *m, UNUSED u32 interactType, struct Object *
 
     if (COURSE_IS_MAIN_COURSE(gCurrCourseNum) && m->numCoins - o->oDamageOrCoinValue < 100
         && m->numCoins >= 100) {
-        bhv_spawn_star_objects(6);
+        bhv_spawn_star_no_level_exit(6);
     }
+#ifdef VERSION_SH
+    if (o->oDamageOrCoinValue >= 2) {
+        queue_rumble_data(5, 80);
+    }
+#endif
 
     return FALSE;
 }
@@ -732,6 +771,9 @@ u32 interact_star_or_key(struct MarioState *m, UNUSED u32 interactType, struct O
 
     if (m->health >= 0x100) {
         mario_stop_riding_and_holding(m);
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
 
         if (!noExit) {
             m->hurtCounter = 0;
@@ -771,10 +813,10 @@ u32 interact_star_or_key(struct MarioState *m, UNUSED u32 interactType, struct O
 
         if (!noExit) {
             drop_queued_background_music();
-            func_8024924C(126);
+            fadeout_level_music(126);
         }
 
-        play_sound(SOUND_MENU_STARSOUND, m->marioObj->header.gfx.cameraToObject);
+        play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->header.gfx.cameraToObject);
 #ifndef VERSION_JP
         update_mario_sound_and_camera(m);
         // func_802521A0
@@ -833,10 +875,20 @@ u32 interact_warp(struct MarioState *m, UNUSED u32 interactType, struct Object *
             m->interactObj = o;
             m->usedObj = o;
 
+#ifdef VERSION_SH
+            if (o->collisionData == segmented_to_virtual(warp_pipe_seg3_collision_03009AC8)) {
+                play_sound(SOUND_MENU_ENTER_PIPE, m->marioObj->header.gfx.cameraToObject);
+                queue_rumble_data(15, 80);
+            } else {
+                play_sound(SOUND_MENU_ENTER_HOLE, m->marioObj->header.gfx.cameraToObject);
+                queue_rumble_data(12, 80);
+            }
+#else
             play_sound(o->collisionData == segmented_to_virtual(warp_pipe_seg3_collision_03009AC8)
-                           ? SOUND_MENU_ENTERPIPE
-                           : SOUND_MENU_MARIOHOLE,
+                           ? SOUND_MENU_ENTER_PIPE
+                           : SOUND_MENU_ENTER_HOLE,
                        m->marioObj->header.gfx.cameraToObject);
+#endif
 
             mario_stop_riding_object(m);
             return set_mario_action(m, ACT_DISAPPEARED, (WARP_OP_WARP_OBJECT << 16) + 2);
@@ -857,7 +909,7 @@ u32 interact_warp_door(struct MarioState *m, UNUSED u32 interactType, struct Obj
             if (!(saveFlags & SAVE_FLAG_HAVE_KEY_2)) {
                 if (!sDisplayingDoorText) {
                     set_mario_action(m, ACT_READING_AUTOMATIC_DIALOG,
-                                     (saveFlags & SAVE_FLAG_HAVE_KEY_1) ? 0x17 : 0x16);
+                                     (saveFlags & SAVE_FLAG_HAVE_KEY_1) ? DIALOG_023 : DIALOG_022);
                 }
                 sDisplayingDoorText = TRUE;
 
@@ -872,7 +924,7 @@ u32 interact_warp_door(struct MarioState *m, UNUSED u32 interactType, struct Obj
                 if (!sDisplayingDoorText) {
                     // Moat door skip was intended confirmed
                     set_mario_action(m, ACT_READING_AUTOMATIC_DIALOG,
-                                     (saveFlags & SAVE_FLAG_HAVE_KEY_2) ? 0x17 : 0x16);
+                                     (saveFlags & SAVE_FLAG_HAVE_KEY_2) ? DIALOG_023 : DIALOG_022);
                 }
                 sDisplayingDoorText = TRUE;
 
@@ -883,7 +935,7 @@ u32 interact_warp_door(struct MarioState *m, UNUSED u32 interactType, struct Obj
         }
 
         if (m->action == ACT_WALKING || m->action == ACT_DECELERATING) {
-            actionArg = func_8024D664(m, o) + 0x00000004;
+            actionArg = should_push_or_pull_door(m, o) + 0x00000004;
 
             if (doorAction == 0) {
                 if (actionArg & 0x00000001) {
@@ -948,7 +1000,7 @@ u32 interact_door(struct MarioState *m, UNUSED u32 interactType, struct Object *
 
     if (m->action == ACT_WALKING || m->action == ACT_DECELERATING) {
         if (numStars >= requiredNumStars) {
-            u32 actionArg = func_8024D664(m, o);
+            u32 actionArg = should_push_or_pull_door(m, o);
             u32 enterDoorAction;
             u32 doorSaveFileFlag;
 
@@ -972,26 +1024,26 @@ u32 interact_door(struct MarioState *m, UNUSED u32 interactType, struct Object *
 
             return set_mario_action(m, enterDoorAction, actionArg);
         } else if (!sDisplayingDoorText) {
-            u32 text = 0x00160000;
+            u32 text = DIALOG_022 << 16;
 
             switch (requiredNumStars) {
                 case 1:
-                    text = 0x00180000;
+                    text = DIALOG_024 << 16;
                     break;
                 case 3:
-                    text = 0x00190000;
+                    text = DIALOG_025 << 16;
                     break;
                 case 8:
-                    text = 0x001A0000;
+                    text = DIALOG_026 << 16;
                     break;
                 case 30:
-                    text = 0x001B0000;
+                    text = DIALOG_027 << 16;
                     break;
                 case 50:
-                    text = 0x001C0000;
+                    text = DIALOG_028 << 16;
                     break;
                 case 70:
-                    text = 0x001D0000;
+                    text = DIALOG_029 << 16;
                     break;
             }
 
@@ -1003,7 +1055,7 @@ u32 interact_door(struct MarioState *m, UNUSED u32 interactType, struct Object *
     } else if (m->action == ACT_IDLE && sDisplayingDoorText == TRUE && requiredNumStars == 70) {
         m->interactObj = o;
         m->usedObj = o;
-        return set_mario_action(m, ACT_ENTERING_STAR_DOOR, func_8024D664(m, o));
+        return set_mario_action(m, ACT_ENTERING_STAR_DOOR, should_push_or_pull_door(m, o));
     }
 
     return FALSE;
@@ -1047,6 +1099,9 @@ u32 interact_tornado(struct MarioState *m, UNUSED u32 interactType, struct Objec
         marioObj->oMarioTornadoPosY = m->pos[1] - o->oPosY;
 
         play_sound(SOUND_MARIO_WAAAOOOW, m->marioObj->header.gfx.cameraToObject);
+#ifdef VERSION_SH
+        queue_rumble_data(30, 60);
+#endif
         return set_mario_action(m, ACT_TORNADO_TWIRLING, m->action == ACT_TWIRLING);
     }
 
@@ -1067,13 +1122,16 @@ u32 interact_whirlpool(struct MarioState *m, UNUSED u32 interactType, struct Obj
         marioObj->oMarioWhirlpoolPosY = m->pos[1] - o->oPosY;
 
         play_sound(SOUND_MARIO_WAAAOOOW, m->marioObj->header.gfx.cameraToObject);
+#ifdef VERSION_SH
+        queue_rumble_data(30, 60);
+#endif
         return set_mario_action(m, ACT_CAUGHT_IN_WHIRLPOOL, 0);
     }
 
     return FALSE;
 }
 
-u32 interact_wind(struct MarioState *m, UNUSED u32 interactType, struct Object *o) {
+u32 interact_strong_wind(struct MarioState *m, UNUSED u32 interactType, struct Object *o) {
     UNUSED struct Object *marioObj = m->marioObj;
 
     if (m->action != ACT_GETTING_BLOWN) {
@@ -1100,16 +1158,19 @@ u32 interact_flame(struct MarioState *m, UNUSED u32 interactType, struct Object 
 
     if (!sInvulnerable && !(m->flags & MARIO_METAL_CAP) && !(m->flags & MARIO_VANISH_CAP)
         && !(o->oInteractionSubtype & INT_SUBTYPE_DELAY_INVINCIBILITY)) {
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         o->oInteractStatus = INT_STATUS_INTERACTED;
         m->interactObj = o;
 
         if ((m->action & (ACT_FLAG_SWIMMING | ACT_FLAG_METAL_WATER))
             || m->waterLevel - m->pos[1] > 50.0f) {
-            play_sound(SOUND_GENERAL_FLAMEOUT, m->marioObj->header.gfx.cameraToObject);
+            play_sound(SOUND_GENERAL_FLAME_OUT, m->marioObj->header.gfx.cameraToObject);
         } else {
             m->marioObj->oMarioBurnTimer = 0;
             update_mario_sound_and_camera(m);
-            play_sound(SOUND_MARIO_ONFIRE, m->marioObj->header.gfx.cameraToObject);
+            play_sound(SOUND_MARIO_ON_FIRE, m->marioObj->header.gfx.cameraToObject);
 
             if ((m->action & ACT_FLAG_AIR) && m->vel[1] <= 0.0f) {
                 burningAction = ACT_BURNING_FALL;
@@ -1175,6 +1236,9 @@ u32 interact_bully(struct MarioState *m, UNUSED u32 interactType, struct Object 
     m->interactObj = o;
 
     if (interaction & INT_ATTACK_NOT_FROM_BELOW) {
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         push_mario_out_of_object(m, o, 5.0f);
 
         m->forwardVel = -16.0f;
@@ -1193,10 +1257,13 @@ u32 interact_bully(struct MarioState *m, UNUSED u32 interactType, struct Object 
 
         update_mario_sound_and_camera(m);
         play_sound(SOUND_MARIO_EEUH, m->marioObj->header.gfx.cameraToObject);
-        play_sound(SOUND_OBJECT_BULLYMETAL, m->marioObj->header.gfx.cameraToObject);
+        play_sound(SOUND_OBJ_BULLY_METAL, m->marioObj->header.gfx.cameraToObject);
 
         push_mario_out_of_object(m, o, 5.0f);
         drop_and_set_mario_action(m, bully_knock_back_mario(m), 0);
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         return TRUE;
     }
 
@@ -1213,6 +1280,9 @@ u32 interact_shock(struct MarioState *m, UNUSED u32 interactType, struct Object 
 
         take_damage_from_interact_object(m);
         play_sound(SOUND_MARIO_ATTACKED, m->marioObj->header.gfx.cameraToObject);
+#ifdef VERSION_SH
+        queue_rumble_data(70, 60);
+#endif
 
         if (m->action & (ACT_FLAG_SWIMMING | ACT_FLAG_METAL_WATER)) {
             return drop_and_set_mario_action(m, ACT_WATER_SHOCKED, 0);
@@ -1228,7 +1298,7 @@ u32 interact_shock(struct MarioState *m, UNUSED u32 interactType, struct Object 
     return FALSE;
 }
 
-static u32 func_8024EF8C(UNUSED struct MarioState *m, UNUSED u32 interactType, struct Object *o) {
+static u32 interact_stub(UNUSED struct MarioState *m, UNUSED u32 interactType, struct Object *o) {
     if (!(o->oInteractionSubtype & INT_SUBTYPE_DELAY_INVINCIBILITY)) {
         sDelayInvincTimer = TRUE;
     }
@@ -1258,6 +1328,9 @@ u32 interact_hit_from_below(struct MarioState *m, UNUSED u32 interactType, struc
     }
 
     if (interaction & INT_ANY_ATTACK) {
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         attack_object(o, interaction);
         bounce_back_from_attack(m, interaction);
 
@@ -1270,7 +1343,7 @@ u32 interact_hit_from_below(struct MarioState *m, UNUSED u32 interactType, struc
                 bounce_off_object(m, o, 80.0f);
                 reset_mario_pitch(m);
 #ifndef VERSION_JP
-                play_sound(SOUND_MARIO_BOING, m->marioObj->header.gfx.cameraToObject);
+                play_sound(SOUND_MARIO_TWIRL_BOUNCE, m->marioObj->header.gfx.cameraToObject);
 #endif
                 return drop_and_set_mario_action(m, ACT_TWIRLING, 0);
             } else {
@@ -1296,6 +1369,9 @@ u32 interact_bounce_top(struct MarioState *m, UNUSED u32 interactType, struct Ob
     }
 
     if (interaction & INT_ATTACK_NOT_FROM_BELOW) {
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         attack_object(o, interaction);
         bounce_back_from_attack(m, interaction);
 
@@ -1304,7 +1380,7 @@ u32 interact_bounce_top(struct MarioState *m, UNUSED u32 interactType, struct Ob
                 bounce_off_object(m, o, 80.0f);
                 reset_mario_pitch(m);
 #ifndef VERSION_JP
-                play_sound(SOUND_MARIO_BOING, m->marioObj->header.gfx.cameraToObject);
+                play_sound(SOUND_MARIO_TWIRL_BOUNCE, m->marioObj->header.gfx.cameraToObject);
 #endif
                 return drop_and_set_mario_action(m, ACT_TWIRLING, 0);
             } else {
@@ -1351,7 +1427,7 @@ u32 interact_damage(struct MarioState *m, UNUSED u32 interactType, struct Object
 u32 interact_breakable(struct MarioState *m, UNUSED u32 interactType, struct Object *o) {
     u32 interaction = determine_interaction(m, o);
 
-    if (interaction & INT_ATTACK_MASK_UNKNOWN_8F) {
+    if (interaction & INT_ATTACK_NOT_WEAK_FROM_ABOVE) {
         attack_object(o, interaction);
         bounce_back_from_attack(m, interaction);
 
@@ -1388,7 +1464,7 @@ u32 interact_koopa_shell(struct MarioState *m, UNUSED u32 interactType, struct O
             play_shell_music();
             mario_drop_held_object(m);
 
-            //! Puts mario in ground action even when in air, making it easy to
+            //! Puts Mario in ground action even when in air, making it easy to
             // escape air actions into crouch slide (shell cancel)
             return set_mario_action(m, ACT_RIDING_SHELL_GROUND, 0);
         }
@@ -1412,6 +1488,9 @@ u32 check_object_grab_mario(struct MarioState *m, UNUSED u32 interactType, struc
 
             update_mario_sound_and_camera(m);
             play_sound(SOUND_MARIO_OOOF, m->marioObj->header.gfx.cameraToObject);
+#ifdef VERSION_SH
+            queue_rumble_data(5, 80);
+#endif
             return set_mario_action(m, ACT_GRABBED, 0);
         }
     }
@@ -1424,10 +1503,20 @@ u32 interact_pole(struct MarioState *m, UNUSED u32 interactType, struct Object *
     s32 actionId = m->action & ACT_ID_MASK;
     if (actionId >= 0x080 && actionId < 0x0A0) {
         if (!(m->prevAction & ACT_FLAG_ON_POLE) || m->usedObj != o) {
-            u32 lowSpeed = m->forwardVel <= 10.0f;
+#ifdef VERSION_SH
+            f32 velConv = m->forwardVel; // conserve the velocity.
             struct Object *marioObj = m->marioObj;
+            u32 lowSpeed;
+#else
+            u32 lowSpeed = (m->forwardVel <= 10.0f);
+            struct Object *marioObj = m->marioObj;
+#endif
 
             mario_stop_riding_and_holding(m);
+
+#ifdef VERSION_SH
+            lowSpeed = (velConv <= 10.0f);
+#endif
 
             m->interactObj = o;
             m->usedObj = o;
@@ -1442,8 +1531,17 @@ u32 interact_pole(struct MarioState *m, UNUSED u32 interactType, struct Object *
                 return set_mario_action(m, ACT_GRAB_POLE_SLOW, 0);
             }
 
+            //! @bug Using m->forwardVel here is assumed to be 0.0f due to the set from earlier.
+            //       This is fixed in the Shindou version.
+#ifdef VERSION_SH
+            marioObj->oMarioPoleYawVel = (s32)(velConv * 0x100 + 0x1000);
+#else
             marioObj->oMarioPoleYawVel = (s32)(m->forwardVel * 0x100 + 0x1000);
+#endif
             reset_mario_pitch(m);
+#ifdef VERSION_SH
+            queue_rumble_data(5, 80);
+#endif
             return set_mario_action(m, ACT_GRAB_POLE_FAST, 0);
         }
     }
@@ -1463,6 +1561,9 @@ u32 interact_hoot(struct MarioState *m, UNUSED u32 interactType, struct Object *
         m->interactObj = o;
         m->usedObj = o;
 
+#ifdef VERSION_SH
+        queue_rumble_data(5, 80);
+#endif
         update_mario_sound_and_camera(m);
         return set_mario_action(m, ACT_RIDING_HOOT, 0);
     }
@@ -1485,17 +1586,17 @@ u32 interact_cap(struct MarioState *m, UNUSED u32 interactType, struct Object *o
         switch (capFlag) {
             case MARIO_VANISH_CAP:
                 capTime = 600;
-                capMusic = 0x040E;
+                capMusic = SEQUENCE_ARGS(4, SEQ_EVENT_POWERUP);
                 break;
 
             case MARIO_METAL_CAP:
                 capTime = 600;
-                capMusic = 0x040F;
+                capMusic = SEQUENCE_ARGS(4, SEQ_EVENT_METAL_CAP);
                 break;
 
             case MARIO_WING_CAP:
                 capTime = 1800;
-                capMusic = 0x040E;
+                capMusic = SEQUENCE_ARGS(4, SEQ_EVENT_POWERUP);
                 break;
         }
 
@@ -1510,8 +1611,8 @@ u32 interact_cap(struct MarioState *m, UNUSED u32 interactType, struct Object *o
             m->flags |= MARIO_CAP_ON_HEAD;
         }
 
-        play_sound(SOUND_MENU_STARSOUND, m->marioObj->header.gfx.cameraToObject);
-        play_sound(SOUND_MARIO_HEREWEGO, m->marioObj->header.gfx.cameraToObject);
+        play_sound(SOUND_MENU_STAR_SOUND, m->marioObj->header.gfx.cameraToObject);
+        play_sound(SOUND_MARIO_HERE_WE_GO, m->marioObj->header.gfx.cameraToObject);
 
         if (capMusic != 0) {
             play_cap_music(capMusic);
@@ -1555,7 +1656,7 @@ u32 interact_grabbable(struct MarioState *m, u32 interactType, struct Object *o)
     return FALSE;
 }
 
-u32 func_8024FC94(struct MarioState *m, u32 arg) {
+u32 mario_can_talk(struct MarioState *m, u32 arg) {
     s16 val6;
 
     if ((m->action & ACT_FLAG_IDLE) != 0x00000000) {
@@ -1589,8 +1690,8 @@ u32 func_8024FC94(struct MarioState *m, u32 arg) {
 #define SIGN_RANGE 0x4000
 #endif
 
-u32 func_8024FD2C(struct MarioState *m, struct Object *o) {
-    if ((m->input & READ_MASK) && func_8024FC94(m, 0) && object_facing_mario(m, o, SIGN_RANGE)) {
+u32 check_read_sign(struct MarioState *m, struct Object *o) {
+    if ((m->input & READ_MASK) && mario_can_talk(m, 0) && object_facing_mario(m, o, SIGN_RANGE)) {
         s16 facingDYaw = (s16)(o->oMoveAngleYaw + 0x8000) - m->faceAngle[1];
         if (facingDYaw >= -SIGN_RANGE && facingDYaw <= SIGN_RANGE) {
             f32 targetX = o->oPosX + 105.0f * sins(o->oMoveAngleYaw);
@@ -1609,9 +1710,9 @@ u32 func_8024FD2C(struct MarioState *m, struct Object *o) {
     return FALSE;
 }
 
-u32 func_8024FEC0(struct MarioState *m, struct Object *o) {
-    if ((m->input & READ_MASK) && func_8024FC94(m, 1)) {
-        s16 facingDYaw = mario_angle_to_object(m, o) - m->faceAngle[1];
+u32 check_npc_talk(struct MarioState *m, struct Object *o) {
+    if ((m->input & READ_MASK) && mario_can_talk(m, 1)) {
+        s16 facingDYaw = mario_obj_angle_to_object(m, o) - m->faceAngle[1];
         if (facingDYaw >= -0x4000 && facingDYaw <= 0x4000) {
             o->oInteractStatus = INT_STATUS_INTERACTED;
 
@@ -1631,9 +1732,9 @@ u32 interact_text(struct MarioState *m, UNUSED u32 interactType, struct Object *
     u32 interact = FALSE;
 
     if (o->oInteractionSubtype & INT_SUBTYPE_SIGN) {
-        interact = func_8024FD2C(m, o);
+        interact = check_read_sign(m, o);
     } else if (o->oInteractionSubtype & INT_SUBTYPE_NPC) {
-        interact = func_8024FEC0(m, o);
+        interact = check_npc_talk(m, o);
     } else {
         push_mario_out_of_object(m, o, 2.0f);
     }
@@ -1655,12 +1756,12 @@ void check_kick_or_punch_wall(struct MarioState *m) {
                 }
 
                 mario_set_forward_vel(m, -48.0f);
-                play_sound(SOUND_ACTION_UNKNOWN444_2, m->marioObj->header.gfx.cameraToObject);
-                m->particleFlags |= 0x00040000;
+                play_sound(SOUND_ACTION_HIT_2, m->marioObj->header.gfx.cameraToObject);
+                m->particleFlags |= PARTICLE_TRIANGLE;
             } else if (m->action & ACT_FLAG_AIR) {
                 mario_set_forward_vel(m, -16.0f);
-                play_sound(SOUND_ACTION_UNKNOWN444_2, m->marioObj->header.gfx.cameraToObject);
-                m->particleFlags |= 0x00040000;
+                play_sound(SOUND_ACTION_HIT_2, m->marioObj->header.gfx.cameraToObject);
+                m->particleFlags |= PARTICLE_TRIANGLE;
             }
         }
     }
@@ -1692,7 +1793,7 @@ void mario_process_interactions(struct MarioState *m) {
         m->invincTimer -= 1;
     }
 
-    //! If the kick/punch flags are set and an object collision changes mario's
+    //! If the kick/punch flags are set and an object collision changes Mario's
     // action, he will get the kick/punch wall speed anyway.
     check_kick_or_punch_wall(m);
     m->flags &= ~MARIO_PUNCHING & ~MARIO_KICKING & ~MARIO_TRIPPING;
@@ -1738,7 +1839,7 @@ void pss_end_slide(struct MarioState *m) {
         u16 slideTime = level_control_timer(TIMER_CONTROL_STOP);
         if (slideTime < 630) {
             m->marioObj->oBehParams = (1 << 24);
-            create_star(-6358.0f, -4300.0f, 4700.0f);
+            spawn_default_star(-6358.0f, -4300.0f, 4700.0f);
         }
         sPssSlideStarted = FALSE;
     }

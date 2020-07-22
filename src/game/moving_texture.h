@@ -1,6 +1,9 @@
-#ifndef _MOVING_TEXTURE_H
-#define _MOVING_TEXTURE_H
+#ifndef MOVING_TEXTURE_H
+#define MOVING_TEXTURE_H
 
+#include <PR/ultratypes.h>
+
+#include "macros.h"
 #include "types.h"
 
 #define ROTATE_CLOCKWISE         0
@@ -17,6 +20,16 @@ enum MovtexRectTextureId
     TEX_QUICKSAND_SSL,
     TEX_PYRAMID_SAND_SSL,
     TEX_YELLOW_TRI_TTC
+};
+
+/**
+ * Contains an id and an array of MovtexQuad structs.
+ */
+struct MovtexQuadCollection {
+    /// identifier for geo nodes to refer to this MovtexQuad collection
+    s16 id;
+    /// points to a short 'n' followed by an array of n MovtexQuad structs
+    Movtex *quadArraySegmented;
 };
 
 extern f32 gPaintingMarioYEntry;
@@ -98,4 +111,14 @@ extern f32 gPaintingMarioYEntry;
 #define MOVTEX_TREADMILL_BIG         (0 | MOVTEX_AREA_TTC)
 #define MOVTEX_TREADMILL_SMALL       (1 | MOVTEX_AREA_TTC)
 
-#endif /* _MOVING_TEXTURE_H */
+Gfx *geo_wdw_set_initial_water_level(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_pause_control(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_water_regions(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_nocolor(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_colored(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_colored_no_update(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_colored_2_no_update(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_update_horizontal(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+Gfx *geo_movtex_draw_colored_no_update(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx);
+
+#endif // MOVING_TEXTURE_H

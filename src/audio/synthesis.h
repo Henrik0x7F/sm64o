@@ -1,49 +1,76 @@
-#ifndef _AUDIO_SYNTHESIS_H
-#define _AUDIO_SYNTHESIS_H
+#ifndef AUDIO_SYNTHESIS_H
+#define AUDIO_SYNTHESIS_H
 
 #include "internal.h"
 
-#define MAX_UPDATES_PER_FRAME 4
+#define DEFAULT_LEN_1CH 0x140
+#define DEFAULT_LEN_2CH 0x280
 
-struct struct_3920_sp1c
+#ifdef VERSION_EU
+#define MAX_UPDATES_PER_FRAME 5
+#else
+#define MAX_UPDATES_PER_FRAME 4
+#endif
+
+struct ReverbRingBufferItem
 {
-    s16 unk00;
+    s16 numSamplesAfterDownsampling;
     s16 chunkLen; // never read
-    s16 *unk4;
-    s16 *unk8;
-    s32 unkC;
-    s16 unk10[2];
+    s16 *toDownsampleLeft;
+    s16 *toDownsampleRight; // data pointed to by left and right are adjacent in memory
+    s32 startPos; // start pos in ring buffer
+    s16 lengthA; // first length in ring buffer (from startPos, at most until end)
+    s16 lengthB; // second length in ring buffer (from pos 0)
 }; // size = 0x14
 
-struct Struct802211B0
+struct SynthesisReverb
 {
-    u8 unk0;
-    u8 unk1;
-    u8 unk2;
-    u8 unk3;
-    u16 unk4;
-    u16 unk6;
-    s32 unk8;
-    s32 unkC;
-    s32 unk10;
+    /*0x00, 0x00*/ u8 resampleFlags;
+    /*0x01, 0x01*/ u8 useReverb;
+    /*0x02, 0x02*/ u8 framesLeftToIgnore;
+    /*0x03, 0x03*/ u8 curFrame;
+#ifdef VERSION_EU
+    /*      0x04*/ u8 downsampleRate;
+    /*      0x06*/ u16 windowSize; // same as bufSizePerChannel
+#endif
+    /*0x04, 0x08*/ u16 reverbGain;
+    /*0x06, 0x0A*/ u16 resampleRate;
+    /*0x08, 0x0C*/ s32 nextRingBufferPos;
+    /*0x0C, 0x10*/ s32 unkC; // never read
+    /*0x10, 0x14*/ s32 bufSizePerChannel;
     struct
     {
-        s16 *unk00;
-        s16 *unk04;
-    } unk14;
-    void *unk1C;
-    void *unk20;
-    void *unk24; // never read
-    void *unk28;
-    struct struct_3920_sp1c unk2C[2][MAX_UPDATES_PER_FRAME];
+        s16 *left;
+        s16 *right;
+    } ringBuffer;
+    /*0x1C, 0x20*/ s16 *resampleStateLeft;
+    /*0x20, 0x24*/ s16 *resampleStateRight;
+    /*0x24, 0x28*/ s16 *unk24; // never read
+    /*0x28, 0x2C*/ s16 *unk28; // never read
+    /*0x2C, 0x30*/ struct ReverbRingBufferItem items[2][MAX_UPDATES_PER_FRAME];
+#ifdef VERSION_EU
+    u8 pad[16];
+#endif
 }; // 0xCC <= size <= 0x100
-extern struct Struct802211B0 D_802211B0;
+#if defined(VERSION_EU)
+extern struct SynthesisReverb gSynthesisReverbs[4];
+extern s8 gNumSynthesisReverbs;
+extern struct NoteSubEu *gNoteSubsEu;
+extern f32 gLeftVolRampings[3][1024];
+extern f32 gRightVolRampings[3][1024];
+extern f32 *gCurrentLeftVolRamping; // Points to any of the three left buffers above
+extern f32 *gCurrentRightVolRamping; // Points to any of the three right buffers above
+#else
+extern struct SynthesisReverb gSynthesisReverb;
+#endif
 
-u64 *func_80313CD4(u64 *cmdBuf, s32 *writtenCmds, u16 *aiBuf, s32 bufLen);
+u64 *synthesis_execute(u64 *cmdBuf, s32 *writtenCmds, s16 *aiBuf, s32 bufLen);
+#ifndef VERSION_EU
 void note_init_volume(struct Note *note);
 void note_set_vel_pan_reverb(struct Note *note, f32 velocity, f32 pan, u8 reverb);
 void note_set_frequency(struct Note *note, f32 frequency);
 void note_enable(struct Note *note);
 void note_disable(struct Note *note);
+#endif
 
-#endif /* _AUDIO_SYNTHESIS_H */
+#endif // AUDIO_SYNTHESIS_H

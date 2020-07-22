@@ -1,9 +1,15 @@
 #include "libultra_internal.h"
 #include "osContInternal.h"
 
-u32 D_80365E00[0x3c >> 2];
+#ifndef AVOID_UB
+ALIGNED8 u32 D_80365E00[15];
 u32 D_80365E3C;
-extern u8 D_80365D20;
+#else
+// Certain code accesses the 16th element (D_80365E3C) in this array, making a seperate
+// definition UB when gcc rearranges those.
+ALIGNED8 u32 D_80365E00[16];
+#endif
+extern u8 _osLastSentSiCmd;
 
 typedef struct {
     u16 unk00;
@@ -67,7 +73,7 @@ s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) {
 
     D_80365E3C = 0;
     sp34 = __osSiRawStartDma(OS_READ, D_80365E00);
-    D_80365D20 = 5;
+    _osLastSentSiCmd = 5;
     osRecvMesg(mq, NULL, OS_MESG_BLOCK);
 
     for (sp30 = 0; sp30 < 4; sp30++) {
@@ -136,7 +142,7 @@ s32 __osEepStatus(OSMesgQueue *a0, unkStruct *a1) {
     sp2c = __osSiRawStartDma(OS_WRITE, D_80365E00);
     osRecvMesg(a0, NULL, OS_MESG_BLOCK);
 
-    D_80365D20 = 5;
+    _osLastSentSiCmd = 5;
 
     sp2c = __osSiRawStartDma(OS_READ, D_80365E00);
     osRecvMesg(a0, NULL, OS_MESG_BLOCK);

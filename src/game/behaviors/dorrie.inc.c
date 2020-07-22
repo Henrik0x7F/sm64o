@@ -1,5 +1,5 @@
 
-static void dorrie_raise_head(void) {
+void dorrie_raise_head(void) {
     s16 startAngle;
     f32 xzDisp;
     f32 yDisp;
@@ -15,7 +15,7 @@ static void dorrie_raise_head(void) {
                   gMarioObject->oPosZ + xzDisp * coss(o->oMoveAngleYaw));
 }
 
-static void dorrie_act_move(void) {
+void dorrie_act_move(void) {
     s16 startYaw;
     s16 targetYaw;
     s16 targetSpeed;
@@ -23,10 +23,10 @@ static void dorrie_act_move(void) {
 
     startYaw = o->oMoveAngleYaw;
     o->oDorrieNeckAngle = -0x26F4;
-    set_obj_animation_and_sound_state(1);
+    cur_obj_init_animation_with_sound(1);
 
     if (o->oDorrieForwardDistToMario < 320.0f && o->oDorrieGroundPounded) {
-        PlaySound2(SOUND_OBJECT_DORRIE);
+        cur_obj_play_sound_2(SOUND_OBJ_DORRIE);
         o->collisionData = segmented_to_virtual(dorrie_seg6_collision_0600FBB8);
         o->oAction = DORRIE_ACT_LOWER_HEAD;
         o->oForwardVel = 0.0f;
@@ -54,15 +54,15 @@ static void dorrie_act_move(void) {
     o->oAngleVelYaw = o->oMoveAngleYaw - startYaw;
 }
 
-static void dorrie_begin_head_raise(s32 liftingMario) {
+void dorrie_begin_head_raise(s32 liftingMario) {
     o->oDorrieLiftingMario = liftingMario;
     o->oAction = DORRIE_ACT_RAISE_HEAD;
     o->oDorrieHeadRaiseSpeed = 0;
 }
 
-static void dorrie_act_lower_head(void) {
-    if (func_802F92EC(2, 35)) {
-        func_8029F6F0();
+void dorrie_act_lower_head(void) {
+    if (cur_obj_init_anim_check_frame(2, 35)) {
+        cur_obj_reverse_animation();
 
 #ifdef VERSION_JP
         if (o->oTimer > 150) {
@@ -92,19 +92,19 @@ static void dorrie_act_lower_head(void) {
     }
 }
 
-static void dorrie_act_raise_head(void) {
+void dorrie_act_raise_head(void) {
     o->collisionData = segmented_to_virtual(dorrie_seg6_collision_0600F644);
-    if (func_8029F788()) {
+    if (cur_obj_check_if_near_animation_end()) {
         o->oAction = DORRIE_ACT_MOVE;
     } else if (o->oDorrieLiftingMario && o->header.gfx.unk38.animFrame < 74) {
         if (set_mario_npc_dialog(2) == 2) {
             o->oDorrieHeadRaiseSpeed += 0x1CC;
-            if (obj_check_anim_frame(73)) {
+            if (cur_obj_check_anim_frame(73)) {
                 set_mario_npc_dialog(0);
             }
             dorrie_raise_head();
         } else {
-            func_8029F6F0();
+            cur_obj_reverse_animation();
         }
     }
 }
@@ -115,14 +115,14 @@ void bhv_dorrie_update(void) {
     UNUSED s32 unused2;
     f32 maxOffsetY;
 
-    if (!(o->activeFlags & 0x0008)) {
+    if (!(o->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)) {
         o->oDorrieForwardDistToMario = o->oDistanceToMario * coss(o->oAngleToMario - o->oMoveAngleYaw);
 
         obj_perform_position_op(0);
-        obj_move_using_fvel_and_gravity();
+        cur_obj_move_using_fvel_and_gravity();
 
-        o->oDorrieAngleToHome = obj_angle_to_home();
-        o->oDorrieDistToHome = obj_lateral_dist_to_home();
+        o->oDorrieAngleToHome = cur_obj_angle_to_home();
+        o->oDorrieDistToHome = cur_obj_lateral_dist_to_home();
 
         // Shift dorrie's bounds to account for her neck
         boundsShift =
@@ -133,7 +133,7 @@ void bhv_dorrie_update(void) {
             o->oPosZ = o->oHomeZ - o->oDorrieDistToHome * coss(o->oDorrieAngleToHome);
         }
 
-        o->oDorrieGroundPounded = obj_is_mario_ground_pounding_platform();
+        o->oDorrieGroundPounded = cur_obj_is_mario_ground_pounding_platform();
 
         if (gMarioObject->platform == o) {
             maxOffsetY = -17.0f;

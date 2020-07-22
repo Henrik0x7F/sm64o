@@ -18,12 +18,12 @@ void bhv_ttm_rolling_log_init(void) {
     o->oAngleVelPitch = 0;
 }
 
-void func_802F238C(void) {
+void rolling_log_roll_log(void) {
     f32 sp24;
 
     if (gMarioObject->platform == o) {
-        sp24 = (gMarioObject->header.gfx.pos[2] - o->oPosZ) * coss(-o->oMoveAngleYaw)
-               - (gMarioObject->header.gfx.pos[0] - o->oPosX) * sins(-o->oMoveAngleYaw);
+        sp24 = (gMarioObject->header.gfx.pos[2] - o->oPosZ) * coss(-1*o->oMoveAngleYaw)
+               - (gMarioObject->header.gfx.pos[0] - o->oPosX) * sins(-1*o->oMoveAngleYaw);
         if (sp24 > 0)
             o->oAngleVelPitch += 0x10;
         else
@@ -35,7 +35,7 @@ void func_802F238C(void) {
         if (o->oAngleVelPitch < -0x200)
             o->oAngleVelPitch = -0x200;
     } else {
-        if (IsPointCloseToObject(o, o->oHomeX, o->oHomeY, o->oHomeZ, 100)) {
+        if (is_point_close_to_object(o, o->oHomeX, o->oHomeY, o->oHomeZ, 100)) {
             if (o->oAngleVelPitch != 0) {
                 if (o->oAngleVelPitch > 0)
                     o->oAngleVelPitch -= 0x10;
@@ -63,7 +63,7 @@ void bhv_rolling_log_loop(void) {
     f32 prevX = o->oPosX;
     f32 prevZ = o->oPosZ;
 
-    func_802F238C();
+    rolling_log_roll_log();
 
     o->oForwardVel = o->oAngleVelPitch / 0x40;
     o->oVelX = o->oForwardVel * sins(o->oMoveAngleYaw);
@@ -82,26 +82,26 @@ void bhv_rolling_log_loop(void) {
 
     o->oFaceAnglePitch += o->oAngleVelPitch;
     if (absf_2(o->oFaceAnglePitch & 0x1FFF) < 528.0f && o->oAngleVelPitch != 0) {
-        PlaySound2(SOUND_GENERAL_UNKNOWN1_2);
+        cur_obj_play_sound_2(SOUND_GENERAL_UNKNOWN1_2);
     }
 }
 
-void func_802F2820(void) {
-    o->oUnknownUnkF4_F32 += 4.0f;
-    o->oAngleVelPitch += o->oUnknownUnkF4_F32;
+void volcano_act_1(void) {
+    o->oRollingLogUnkF4 += 4.0f;
+    o->oAngleVelPitch += o->oRollingLogUnkF4;
     o->oFaceAnglePitch -= o->oAngleVelPitch;
 
     if (o->oFaceAnglePitch < -0x4000) {
         o->oFaceAnglePitch = -0x4000;
         o->oAngleVelPitch = 0;
-        o->oUnknownUnkF4_F32 = 0;
+        o->oRollingLogUnkF4 = 0;
         o->oAction = 2;
-        PlaySound2(SOUND_GENERAL_BIGPOUND);
-        func_8027F440(3, o->oPosX, o->oPosY, o->oPosZ);
+        cur_obj_play_sound_2(SOUND_GENERAL_BIG_POUND);
+        set_camera_shake_from_point(SHAKE_POS_LARGE, o->oPosX, o->oPosY, o->oPosZ);
     }
 }
 
-void func_802F2924(void) {
+void volcano_act_3(void) {
     o->oAngleVelPitch = 0x90;
     o->oFaceAnglePitch += o->oAngleVelPitch;
     if (o->oFaceAnglePitch > 0)
@@ -111,17 +111,17 @@ void func_802F2924(void) {
         o->oAction = 0;
 }
 
-void bhvLllVolcanoFallingTrap_loop(void) {
+void bhv_volcano_trap_loop(void) {
     switch (o->oAction) {
         case 0:
             if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000)) {
                 o->oAction = 1;
-                PlaySound2(SOUND_GENERAL_QUIETPOUND2);
+                cur_obj_play_sound_2(SOUND_GENERAL_QUIET_POUND2);
             }
             break;
 
         case 1:
-            func_802F2820();
+            volcano_act_1();
             break;
 
         case 2:
@@ -129,13 +129,13 @@ void bhvLllVolcanoFallingTrap_loop(void) {
                 o->oPosY = o->oHomeY + sins(o->oTimer * 0x1000) * 10.0f;
             }
             if (o->oTimer == 50) {
-                PlaySound2(SOUND_GENERAL_UNK45);
+                cur_obj_play_sound_2(SOUND_GENERAL_UNK45);
                 o->oAction = 3;
             }
             break;
 
         case 3:
-            func_802F2924();
+            volcano_act_3();
             break;
     }
 }

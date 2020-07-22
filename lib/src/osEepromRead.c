@@ -1,8 +1,6 @@
 #include "libultra_internal.h"
 
-extern u32 D_80365E00[15];
-extern u32 D_80365E3C;
-extern u8 D_80365D20;
+extern u8 _osLastSentSiCmd;
 
 typedef struct {
     u16 unk00;
@@ -60,7 +58,7 @@ s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) {
     }
     D_80365E3C = 0;
     sp34 = __osSiRawStartDma(OS_READ, D_80365E00);
-    D_80365D20 = 4;
+    _osLastSentSiCmd = 4;
     osRecvMesg(mq, NULL, OS_MESG_BLOCK);
     for (sp30 = 0; sp30 < 4; sp30++) {
         sp2c++;

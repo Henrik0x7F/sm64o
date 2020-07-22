@@ -54,31 +54,69 @@ static void parse_error(const char *filename, int lineNum, const char *msgfmt, .
 // Reads the whole file and returns a null-terminated buffer with its contents
 void *read_text_file(const char *filename)
 {
-    FILE *file = fopen(filename, "rb");
-    uint8_t *buffer;
-    size_t size;
+    if (strcmp(filename, "-") != 0)
+    {
+        FILE *file = fopen(filename, "rb");
+        uint8_t *buffer;
+        size_t size;
 
-    if (file == NULL)
-        fatal_error("failed to open file '%s' for reading: %s", filename, strerror(errno));
+        if (file == NULL)
+            fatal_error("failed to open file '%s' for reading: %s", filename, strerror(errno));
 
-    // get size
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
+        // get size
+        fseek(file, 0, SEEK_END);
+        size = ftell(file);
 
-    // allocate buffer
-    buffer = malloc(size + 1);
+        // allocate buffer
+        buffer = malloc(size + 1);
+        if (buffer == NULL)
+            fatal_error("could not allocate buffer of size %u", (uint32_t)(size + 1));
 
-    // read file
-    fseek(file, 0, SEEK_SET);
-    if (fread(buffer, size, 1, file) != 1)
-        fatal_error("error reading from file '%s': %s", filename, strerror(errno));
+        // read file
+        fseek(file, 0, SEEK_SET);
+        if (fread(buffer, size, 1, file) != 1)
+            fatal_error("error reading from file '%s': %s", filename, strerror(errno));
 
-    // null-terminate the buffer
-    buffer[size] = 0;
+        // null-terminate the buffer
+        buffer[size] = 0;
 
-    fclose(file);
+        fclose(file);
 
-    return buffer;
+        return buffer;
+    }
+    else
+    {
+        size_t size = 0;
+        size_t capacity = 1024;
+        uint8_t *buffer = malloc(capacity + 1);
+
+        if (buffer == NULL)
+            fatal_error("could not allocate buffer of size %u", (uint32_t)(capacity + 1));
+
+        for (;;)
+        {
+            size += fread(buffer + size, 1, capacity - size, stdin);
+            if (size == capacity)
+            {
+                capacity *= 2;
+                buffer = realloc(buffer, capacity + 1);
+                if (buffer == NULL)
+                    fatal_error("could not allocate buffer of size %u", (uint32_t)(capacity + 1));
+            }
+            else if (feof(stdin))
+            {
+                break;
+            }
+            else
+            {
+                fatal_error("error reading from stdin: %s", strerror(errno));
+            }
+        }
+
+        // null-terminate the buffer
+        buffer[size] = 0;
+        return buffer;
+    }
 }
 
 static char *skip_whitespace(char *str)
@@ -179,6 +217,13 @@ static void read_charmap(const char *filename)
                 else if (*line == '\\')
                 {
                     line++; // advance to get the character being escaped
+                    if (*line == '\r')
+                        line++;
+                    if (*line == '\n')
+                    {
+                        // Backslash at end of line is ignored
+                        continue;
+                    }
                     entry.unicode[len] = get_escape_char(*line);
                     if (entry.unicode[len] == 0)
                         parse_error(filename, lineNum, "unknown escape sequence \\%c", *line);
@@ -254,7 +299,7 @@ static int count_line_num(const char *start, const char *pos)
     return lineNum;
 }
 
-static char *convert_string(char *pos, FILE *fout, const char *inputFileName, char *start)
+static char *convert_string(char *pos, FILE *fout, const char *inputFileName, char *start, int uncompressed)
 {
     int hasString = 0;
 
@@ -291,10 +336,11 @@ static char *convert_string(char *pos, FILE *fout, const char *inputFileName, ch
             // Find a charmap entry of longest length possible starting from this position
             while (*pos != '"')
             {
-                if (length == ARRAY_COUNT(entry->unicode))
+                if ((uncompressed && length == 1) || length == ARRAY_COUNT(entry->unicode))
                 {
                     // Stop searching after length 3; we only support strings of lengths up
-                    // to that right now.
+                    // to that right now. Unless uncompressed is set, in which we ignore multi
+                    // texts by discarding entries longer than 1.
                     break;
                 }
 
@@ -343,7 +389,7 @@ static char *convert_string(char *pos, FILE *fout, const char *inputFileName, ch
 static void convert_file(const char *infilename, const char *outfilename)
 {
     char *in = read_text_file(infilename);
-    FILE *fout = fopen(outfilename, "wb");
+    FILE *fout = strcmp(outfilename, "-") != 0 ? fopen(outfilename, "wb") : stdout;
 
     if (fout == NULL)
         fatal_error("failed to open file '%s' for writing: %s", strerror(errno));
@@ -402,15 +448,21 @@ static void convert_file(const char *infilename, const char *outfilename)
             pos++;
         }
         // check for _( sequence
-        else if (*pos == '_' && (pos == in || !is_identifier_char(pos[-1])))
+        else if ((*pos == '_') && (pos == in || !is_identifier_char(pos[-1])))
         {
+            int uncompressed = 0;
             end = pos;
             pos++;
+            if (*pos == '_') // an extra _ signifies uncompressed strings. Enable uncompressed flag
+            {
+                pos++;
+                uncompressed = 1;
+            }
             if (*pos == '(')
             {
                 pos++;
                 fwrite(start, end - start, 1, fout);
-                pos = convert_string(pos, fout, infilename, in);
+                pos = convert_string(pos, fout, infilename, in, uncompressed);
                 start = pos;
             }
         }
@@ -422,7 +474,8 @@ static void convert_file(const char *infilename, const char *outfilename)
 
   eof:
     fwrite(start, pos - start, 1, fout);
-    fclose(fout);
+    if (strcmp(outfilename, "-") != 0)
+        fclose(fout);
     free(in);
 }
 

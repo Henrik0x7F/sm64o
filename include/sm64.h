@@ -1,5 +1,5 @@
-#ifndef _SM64_H_
-#define _SM64_H_
+#ifndef SM64_H
+#define SM64_H
 
 // Global header for Super Mario 64
 
@@ -21,22 +21,22 @@
 #define DEBUG_ASSERT(exp)
 #endif
 
-// Use these macros in places where aliasing is used to split a variable into
-// smaller parts
-#if ENDIAN_IND
+// Pointer casting is technically UB, and avoiding it gets rid of endian issues
+// as well as a nice side effect.
+#ifdef AVOID_UB
 #define GET_HIGH_U16_OF_32(var) ((u16)((var) >> 16))
 #define GET_HIGH_S16_OF_32(var) ((s16)((var) >> 16))
 #define GET_LOW_U16_OF_32(var) ((u16)((var) & 0xFFFF))
 #define GET_LOW_S16_OF_32(var) ((s16)((var) & 0xFFFF))
-#define SET_HIGH_U16_OF_32(var, val) ((var) = ((var) & 0xFFFF) | ((val) << 16))
-#define SET_HIGH_S16_OF_32(var, val) ((var) = ((var) & 0xFFFF) | ((val) << 16))
+#define SET_HIGH_U16_OF_32(var, x) ((var) = ((var) & 0xFFFF) | ((x) << 16))
+#define SET_HIGH_S16_OF_32(var, x) ((var) = ((var) & 0xFFFF) | ((x) << 16))
 #else
 #define GET_HIGH_U16_OF_32(var) (((u16 *)&(var))[0])
 #define GET_HIGH_S16_OF_32(var) (((s16 *)&(var))[0])
 #define GET_LOW_U16_OF_32(var) (((u16 *)&(var))[1])
 #define GET_LOW_S16_OF_32(var) (((s16 *)&(var))[1])
-#define SET_HIGH_U16_OF_32(var, val) ((((u16 *)&(var))[0]) = (val))
-#define SET_HIGH_S16_OF_32(var, val) ((((s16 *)&(var))[0]) = (val))
+#define SET_HIGH_U16_OF_32(var, x) ((((u16 *)&(var))[0]) = (x))
+#define SET_HIGH_S16_OF_32(var, x) ((((s16 *)&(var))[0]) = (x))
 #endif
 
 // Layers
@@ -88,26 +88,26 @@
 #define WATER_STEP_CANCELLED   3
 #define WATER_STEP_HIT_WALL    4
 
-#define PARTICLE_DUST     /* 0x00000001 */ (1 <<  0)
-#define PARTICLE_1        /* 0x00000002 */ (1 <<  1)
-#define PARTICLE_2        /* 0x00000004 */ (1 <<  2)
-#define PARTICLE_SPARKLES /* 0x00000008 */ (1 <<  3)
-#define PARTICLE_4        /* 0x00000010 */ (1 <<  4)
-#define PARTICLE_5        /* 0x00000020 */ (1 <<  5)
-#define PARTICLE_6        /* 0x00000040 */ (1 <<  6)
-#define PARTICLE_7        /* 0x00000080 */ (1 <<  7)
-#define PARTICLE_8        /* 0x00000100 */ (1 <<  8)
-#define PARTICLE_9        /* 0x00000200 */ (1 <<  9)
-#define PARTICLE_10       /* 0x00000400 */ (1 << 10)
-#define PARTICLE_11       /* 0x00000800 */ (1 << 11)
-#define PARTICLE_12       /* 0x00001000 */ (1 << 12)
-#define PARTICLE_LEAVES   /* 0x00002000 */ (1 << 13)
-#define PARTICLE_14       /* 0x00004000 */ (1 << 14)
-#define PARTICLE_15       /* 0x00008000 */ (1 << 15)
-#define PARTICLE_16       /* 0x00010000 */ (1 << 16)
-#define PARTICLE_17       /* 0x00020000 */ (1 << 17)
-#define PARTICLE_18       /* 0x00040000 */ (1 << 18)
-#define PARTICLE_19       /* 0x00080000 */ (1 << 19)
+#define PARTICLE_DUST                 /* 0x00000001 */ (1 <<  0)
+#define PARTICLE_VERTICAL_STAR        /* 0x00000002 */ (1 <<  1)
+#define PARTICLE_2                    /* 0x00000004 */ (1 <<  2)
+#define PARTICLE_SPARKLES             /* 0x00000008 */ (1 <<  3)
+#define PARTICLE_HORIZONTAL_STAR      /* 0x00000010 */ (1 <<  4)
+#define PARTICLE_BUBBLE               /* 0x00000020 */ (1 <<  5)
+#define PARTICLE_WATER_SPLASH         /* 0x00000040 */ (1 <<  6)
+#define PARTICLE_IDLE_WATER_WAVE      /* 0x00000080 */ (1 <<  7)
+#define PARTICLE_SHALLOW_WATER_WAVE   /* 0x00000100 */ (1 <<  8)
+#define PARTICLE_PLUNGE_BUBBLE        /* 0x00000200 */ (1 <<  9)
+#define PARTICLE_WAVE_TRAIL           /* 0x00000400 */ (1 << 10)
+#define PARTICLE_FIRE                 /* 0x00000800 */ (1 << 11)
+#define PARTICLE_SHALLOW_WATER_SPLASH /* 0x00001000 */ (1 << 12)
+#define PARTICLE_LEAF                 /* 0x00002000 */ (1 << 13)
+#define PARTICLE_SNOW                 /* 0x00004000 */ (1 << 14)
+#define PARTICLE_DIRT                 /* 0x00008000 */ (1 << 15)
+#define PARTICLE_MIST_CIRCLE          /* 0x00010000 */ (1 << 16)
+#define PARTICLE_BREATH               /* 0x00020000 */ (1 << 17)
+#define PARTICLE_TRIANGLE             /* 0x00040000 */ (1 << 18)
+#define PARTICLE_19                   /* 0x00080000 */ (1 << 19)
 
 #define MODEL_STATE_NOISE_ALPHA 0x180
 #define MODEL_STATE_METAL       0x200
@@ -122,8 +122,8 @@
 #define MARIO_TELEPORTING               0x00000080
 #define MARIO_UNKNOWN_08                0x00000100
 #define MARIO_UNKNOWN_13                0x00002000
-#define MARIO_ENVIRONMENT_NOISE_PLAYED  0x00010000
-#define MARIO_ACTION_NOISE_PLAYED       0x00020000
+#define MARIO_ACTION_SOUND_PLAYED       0x00010000
+#define MARIO_MARIO_SOUND_PLAYED        0x00020000
 #define MARIO_UNKNOWN_18                0x00040000
 #define MARIO_PUNCHING                  0x00100000
 #define MARIO_KICKING                   0x00200000
@@ -164,8 +164,8 @@
 #define ACT_FLAG_CONTROL_JUMP_HEIGHT         /* 0x02000000 */ (1 << 25)
 #define ACT_FLAG_ALLOW_FIRST_PERSON          /* 0x04000000 */ (1 << 26)
 #define ACT_FLAG_PAUSE_EXIT                  /* 0x08000000 */ (1 << 27)
-#define ACT_FLAG_SWIMMING_OR_FLYING          /* 0x10000000 */ (1 << 28) // not checked by game
-#define ACT_FLAG_WATER_OR_TEXT               /* 0x20000000 */ (1 << 29) // not checked by game
+#define ACT_FLAG_SWIMMING_OR_FLYING          /* 0x10000000 */ (1 << 28)
+#define ACT_FLAG_WATER_OR_TEXT               /* 0x20000000 */ (1 << 29)
 #define ACT_FLAG_THROWING                    /* 0x80000000 */ (1 << 31)
 
 #define ACT_UNINITIALIZED              0x00000000 // (0x000)
@@ -176,28 +176,28 @@
 #define ACT_SLEEPING                   0x0C000203 // (0x003 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_WAKING_UP                  0x0C000204 // (0x004 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_PANTING                    0x0C400205 // (0x005 | ACT_FLAG_STATIONARY | ACT_FLAG_IDLE | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_006                0x08000206 // (0x006 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_007                0x08000207 // (0x007 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_008                0x08000208 // (0x008 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_PANTING_UNUSED        0x08000206 // (0x006 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_IDLE                  0x08000207 // (0x007 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_HEAVY_IDLE            0x08000208 // (0x008 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
 #define ACT_STANDING_AGAINST_WALL      0x0C400209 // (0x009 | ACT_FLAG_STATIONARY | ACT_FLAG_IDLE | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_COUGHING                   0x0C40020A // (0x00A | ACT_FLAG_STATIONARY | ACT_FLAG_IDLE | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_SHIVERING                  0x0C40020B // (0x00B | ACT_FLAG_STATIONARY | ACT_FLAG_IDLE | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_IN_QUICKSAND               0x0002020D // (0x00D | ACT_FLAG_STATIONARY | ACT_FLAG_INVULNERABLE)
 #define ACT_CROUCHING                  0x0C008220 // (0x020 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_START_CROUCHING            0x0C008221 // (0x021 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_022                0x0C008222 // (0x022 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
+#define ACT_STOP_CROUCHING             0x0C008222 // (0x022 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_START_CRAWLING             0x0C008223 // (0x023 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_024                0x0C008224 // (0x024 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
+#define ACT_STOP_CRAWLING              0x0C008224 // (0x024 | ACT_FLAG_STATIONARY | ACT_FLAG_SHORT_HITBOX | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_SLIDE_KICK_SLIDE_STOP      0x08000225 // (0x025 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_026                0x00020226 // (0x026 | ACT_FLAG_STATIONARY | ACT_FLAG_INVULNERABLE)
+#define ACT_SHOCKWAVE_BOUNCE           0x00020226 // (0x026 | ACT_FLAG_STATIONARY | ACT_FLAG_INVULNERABLE)
 #define ACT_FIRST_PERSON               0x0C000227 // (0x027 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_BACKFLIP_LAND_STOP         0x0800022F // (0x02F | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
 #define ACT_JUMP_LAND_STOP             0x0C000230 // (0x030 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_DOUBLE_JUMP_LAND_STOP      0x0C000231 // (0x031 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_FREEFALL_LAND_STOP         0x0C000232 // (0x032 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_SIDE_FLIP_LAND_STOP        0x0C000233 // (0x033 | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_034                0x08000234 // (0x034 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_035                0x08000235 // (0x035 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_JUMP_LAND_STOP        0x08000234 // (0x034 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_FREEFALL_LAND_STOP    0x08000235 // (0x035 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
 #define ACT_AIR_THROW_LAND             0x80000A36 // (0x036 | ACT_FLAG_STATIONARY | ACT_FLAG_AIR | ACT_FLAG_THROWING)
 #define ACT_TWIRL_LAND                 0x18800238 // (0x038 | ACT_FLAG_STATIONARY | ACT_FLAG_ATTACKING | ACT_FLAG_PAUSE_EXIT | ACT_FLAG_SWIMMING_OR_FLYING)
 #define ACT_LAVA_BOOST_LAND            0x08000239 // (0x039 | ACT_FLAG_STATIONARY | ACT_FLAG_PAUSE_EXIT)
@@ -206,7 +206,7 @@
 #define ACT_GROUND_POUND_LAND          0x0080023C // (0x03C | ACT_FLAG_STATIONARY | ACT_FLAG_ATTACKING)
 #define ACT_BRAKING_STOP               0x0C00023D // (0x03D | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
 #define ACT_BUTT_SLIDE_STOP            0x0C00023E // (0x03E | ACT_FLAG_STATIONARY | ACT_FLAG_ALLOW_FIRST_PERSON | ACT_FLAG_PAUSE_EXIT)
-#define ACT_UNKNOWN_03F                0x0800043F // (0x03F | ACT_FLAG_MOVING | ACT_FLAG_PAUSE_EXIT)
+#define ACT_HOLD_BUTT_SLIDE_STOP       0x0800043F // (0x03F | ACT_FLAG_MOVING | ACT_FLAG_PAUSE_EXIT)
 
 // group 0x040: moving (ground) actions
 #define ACT_WALKING                    0x04000440 // (0x040 | ACT_FLAG_MOVING | ACT_FLAG_ALLOW_FIRST_PERSON)
@@ -415,11 +415,6 @@
 #define ACT_HOLDING_BOWSER             0x00000391 // (0x191 | ACT_FLAG_STATIONARY)
 #define ACT_RELEASING_BOWSER           0x00000392 // (0x192 | ACT_FLAG_STATIONARY)
 
-// convert a virtual address to physical.
-#define VIRTUAL_TO_PHYSICAL(addr)    ((u32)(addr) & 0x1FFFFFFF)
-// convert a physical address to virtual.
-#define PHYSICAL_TO_VIRTUAL(addr)    ((u32)(addr) | 0x80000000)
-
 /*
  this input mask is unused by the controller,
  but END_DEMO is used internally to signal
@@ -435,4 +430,4 @@
 
 #define C_BUTTONS     (U_CBUTTONS | D_CBUTTONS | L_CBUTTONS | R_CBUTTONS   )
 
-#endif
+#endif // SM64_H

@@ -12,10 +12,10 @@ static struct ObjectHitbox sCapHitbox = {
     /* hurtboxHeight:     */ 90,
 };
 
-s32 func_802F0904(void) {
-    set_object_hitbox(o, &sCapHitbox);
+s32 cap_set_hitbox(void) {
+    obj_set_hitbox(o, &sCapHitbox);
     if (o->oInteractStatus & INT_STATUS_INTERACTED) {
-        o->activeFlags = 0;
+        o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
         o->oInteractStatus = 0;
         return 1;
     }
@@ -23,19 +23,19 @@ s32 func_802F0904(void) {
     return 0;
 }
 
-void func_802F0978(void) {
+void cap_despawn(void) {
     if (o->oTimer > 300) {
-        ObjFlickerAndDisappear(o, 300);
+        obj_flicker_and_disappear(o, 300);
     }
 }
 
-void func_802F09C0(void) {
-    if (D_803600E0 == NULL)
+void cap_check_quicksand(void) {
+    if (sObjFloor == NULL)
         return;
 
-    switch (D_803600E0->type) {
+    switch (sObjFloor->type) {
         case SURFACE_DEATH_PLANE:
-            o->activeFlags = 0;
+            o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             break;
 
         case SURFACE_SHALLOW_QUICKSAND:
@@ -49,24 +49,24 @@ void func_802F09C0(void) {
         case SURFACE_SHALLOW_MOVING_QUICKSAND:
         case SURFACE_MOVING_QUICKSAND:
             o->oAction = 11;
-            o->oMoveAngleYaw = (D_803600E0->force & 0xFF) << 8;
-            o->oForwardVel = -((D_803600E0->force & 0xff00) >> 8) * 2 + 8;
+            o->oMoveAngleYaw = (sObjFloor->force & 0xFF) << 8;
+            o->oForwardVel = 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8));
             break;
 
         case SURFACE_INSTANT_QUICKSAND:
             o->oAction = 12;
-            o->oForwardVel = 0;
+            o->oForwardVel = 0.0f;
             break;
 
         case SURFACE_INSTANT_MOVING_QUICKSAND:
             o->oAction = 13;
-            o->oMoveAngleYaw = (D_803600E0->force & 0xFF) << 8;
-            o->oForwardVel = -((D_803600E0->force & 0xff00) >> 8) * 2 + 8;
+            o->oMoveAngleYaw = (sObjFloor->force & 0xFF) << 8;
+            o->oForwardVel = 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8));
             break;
     }
 }
 
-void func_802F0B68(void) {
+void cap_sink_quicksand(void) {
     switch (o->oAction) {
         case 10:
             if (o->oTimer < 10) {
@@ -85,20 +85,20 @@ void func_802F0B68(void) {
         case 12:
             o->oGraphYOffset += -1.0f;
             if (o->oTimer >= 21)
-                o->activeFlags = 0;
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
             break;
 
         case 13:
             o->oGraphYOffset += -6.0f;
             if (o->oTimer >= 21)
-                o->activeFlags = 0;
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
             o->oFaceAnglePitch = 0x2000;
             break;
     }
 
-    func_802F09C0();
+    cap_check_quicksand();
 }
 
 void bhv_wing_cap_init(void) {
@@ -108,49 +108,49 @@ void bhv_wing_cap_init(void) {
     o->oOpacity = 255;
 }
 
-void func_802F0D70(void) {
-    o->oUnknownUnkF8_S32 += 0x2000;
-    o->header.gfx.scale[1] = coss(o->oUnknownUnkF8_S32) * 0.3 + 0.7;
-    if (o->oUnknownUnkF8_S32 == 0x10000) {
-        o->oUnknownUnkF8_S32 = 0;
-        o->oUnknownUnkF4_S32 = 2;
+void cap_scale_vertically(void) {
+    o->oCapUnkF8 += 0x2000;
+    o->header.gfx.scale[1] = coss(o->oCapUnkF8) * 0.3 + 0.7;
+    if (o->oCapUnkF8 == 0x10000) {
+        o->oCapUnkF8 = 0;
+        o->oCapUnkF4 = 2;
     }
 }
 
-void func_802F0E0C(void) {
+void wing_vanish_cap_act_0(void) {
     s16 sp1E;
 
     o->oFaceAngleYaw += o->oForwardVel * 128.0f;
-    sp1E = ObjectStep();
+    sp1E = object_step();
     if (sp1E & 0x01) {
-        func_802F09C0();
+        cap_check_quicksand();
         if (o->oVelY != 0.0f) {
-            o->oUnknownUnkF4_S32 = 1;
+            o->oCapUnkF4 = 1;
             o->oVelY = 0.0f;
         }
     }
 
-    if (o->oUnknownUnkF4_S32 == 1)
-        func_802F0D70();
+    if (o->oCapUnkF4 == 1)
+        cap_scale_vertically();
 }
 
 void bhv_wing_vanish_cap_loop(void) {
     switch (o->oAction) {
         case 0:
-            func_802F0E0C();
+            wing_vanish_cap_act_0();
             break;
 
         default:
-            ObjectStep();
-            func_802F0B68();
+            object_step();
+            cap_sink_quicksand();
             break;
     }
 
     if (o->oTimer > 20)
-        obj_become_tangible();
+        cur_obj_become_tangible();
 
-    func_802F0978();
-    func_802F0904();
+    cap_despawn();
+    cap_set_hitbox();
 }
 
 void bhv_metal_cap_init(void) {
@@ -160,32 +160,32 @@ void bhv_metal_cap_init(void) {
     o->oOpacity = 0xFF;
 }
 
-void func_802F0FE0(void) {
+void metal_cap_act_0(void) {
     s16 sp1E;
 
     o->oFaceAngleYaw += o->oForwardVel * 128.0f;
-    sp1E = ObjectStep();
+    sp1E = object_step();
     if (sp1E & 0x01)
-        func_802F09C0();
+        cap_check_quicksand();
 }
 
 void bhv_metal_cap_loop(void) {
     switch (o->oAction) {
         case 0:
-            func_802F0FE0();
+            metal_cap_act_0();
             break;
 
         default:
-            ObjectStep();
-            func_802F0B68();
+            object_step();
+            cap_sink_quicksand();
             break;
     }
 
     if (o->oTimer > 20)
-        obj_become_tangible();
+        cur_obj_become_tangible();
 
-    func_802F0904();
-    func_802F0978();
+    cap_set_hitbox();
+    cap_despawn();
 }
 
 void bhv_normal_cap_init(void) {
@@ -197,7 +197,7 @@ void bhv_normal_cap_init(void) {
     save_file_set_cap_pos(o->oPosX, o->oPosY, o->oPosZ);
 }
 
-void func_802F1190(void) {
+void normal_cap_set_save_flags(void) {
     save_file_clear_flags(SAVE_FLAG_CAP_ON_GROUND);
 
     switch (gCurrCourseNum) {
@@ -219,45 +219,45 @@ void func_802F1190(void) {
     }
 }
 
-void func_802F1234(void) {
+void normal_cap_act_0(void) {
     s16 sp1E;
 
     o->oFaceAngleYaw += o->oForwardVel * 128.0f;
     o->oFaceAnglePitch += o->oForwardVel * 80.0f;
-    sp1E = ObjectStep();
+    sp1E = object_step();
     if (sp1E & 0x01) {
-        func_802F09C0();
+        cap_check_quicksand();
 
         if (o->oVelY != 0.0f) {
-            o->oUnknownUnkF4_S32 = 1;
+            o->oCapUnkF4 = 1;
             o->oVelY = 0.0f;
             o->oFaceAnglePitch = 0;
         }
     }
 
-    if (o->oUnknownUnkF4_S32 == 1)
-        func_802F0D70();
+    if (o->oCapUnkF4 == 1)
+        cap_scale_vertically();
 }
 
 void bhv_normal_cap_loop(void) {
     switch (o->oAction) {
         case 0:
-            func_802F1234();
+            normal_cap_act_0();
             break;
 
         default:
-            ObjectStep();
-            func_802F0B68();
+            object_step();
+            cap_sink_quicksand();
             break;
     }
 
     if ((s32) o->oForwardVel != 0)
         save_file_set_cap_pos(o->oPosX, o->oPosY, o->oPosZ);
 
-    if (o->activeFlags == 0)
-        func_802F1190();
+    if (o->activeFlags == ACTIVE_FLAG_DEACTIVATED)
+        normal_cap_set_save_flags();
 
-    if (func_802F0904() == 1)
+    if (cap_set_hitbox() == 1)
         save_file_clear_flags(SAVE_FLAG_CAP_ON_GROUND);
 }
 

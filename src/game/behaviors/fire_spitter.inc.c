@@ -1,7 +1,7 @@
 
 static void fire_spitter_act_idle(void) {
     approach_f32_ptr(&o->header.gfx.scale[0], 0.2f, 0.002f);
-    if (o->oTimer > 150 && o->oDistanceToMario < 800.0f && !(o->oMoveFlags & 0x00000078)) {
+    if (o->oTimer > 150 && o->oDistanceToMario < 800.0f && !(o->oMoveFlags & OBJ_MOVE_MASK_IN_WATER)) {
         o->oAction = FIRE_SPITTER_ACT_SPIT_FIRE;
         o->oFireSpitterScaleVel = 0.05f;
     }
@@ -20,16 +20,16 @@ static void fire_spitter_act_spit_fire(void) {
         if (scaleStatus < 0) {
             o->oAction = FIRE_SPITTER_ACT_IDLE;
         } else {
-            PlaySound2(SOUND_OBJECT_FLAMEBLOWN);
+            cur_obj_play_sound_2(SOUND_OBJ_FLAME_BLOWN);
             obj_spit_fire(0, 0, 0, 5.0f, MODEL_RED_FLAME_SHADOW, 20.0f, 15.0f, 0x1000);
         }
     }
 }
 
 void bhv_fire_spitter_update(void) {
-    obj_scale(o->header.gfx.scale[0]);
+    cur_obj_scale(o->header.gfx.scale[0]);
     o->oGraphYOffset = 40.0f;
-    obj_update_floor_and_walls();
+    cur_obj_update_floor_and_walls();
 
     switch (o->oAction) {
         case FIRE_SPITTER_ACT_IDLE:
@@ -40,5 +40,5 @@ void bhv_fire_spitter_update(void) {
             break;
     }
 
-    obj_move_standard(78);
+    cur_obj_move_standard(78);
 }

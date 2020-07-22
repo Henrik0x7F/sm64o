@@ -8,7 +8,7 @@ void bhv_sliding_snow_mound_loop(void) {
             if (o->oTimer >= 118)
                 o->oAction = 1;
 
-            PlaySound(SOUND_ENVIRONMENT_SINKQUICKSAND);
+            cur_obj_play_sound_1(SOUND_ENV_SINK_QUICKSAND);
             break;
 
         case 1:
@@ -18,7 +18,7 @@ void bhv_sliding_snow_mound_loop(void) {
             o->oPosY += o->oVelY;
             o->oPosZ = o->oHomeZ - 2.0f;
             if (o->oTimer > 50)
-                o->activeFlags = 0;
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             break;
     }
 }

@@ -33,7 +33,7 @@ void bhv_falling_pillar_spawn_hitboxes(void) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        spawn_object_relative(i, 0, i * 400 + 300, 0, o, MODEL_NONE, &bhvFallingPillarHitbox);
+        spawn_object_relative(i, 0, i * 400 + 300, 0, o, MODEL_NONE, bhvFallingPillarHitbox);
     }
 }
 
@@ -74,12 +74,12 @@ void bhv_falling_pillar_loop(void) {
                 o->oAction = FALLING_PILLAR_ACT_TURNING;
 
                 // Play the detaching sound.
-                PlaySound2(SOUND_GENERAL_POUNDROCK);
+                cur_obj_play_sound_2(SOUND_GENERAL_POUND_ROCK);
             }
             break;
 
         case FALLING_PILLAR_ACT_TURNING:
-            func_802E4204();
+            object_step_without_floor_orient();
 
             // Calculate angle in front of Mario and turn towards it.
             angleInFrontOfMario = bhv_falling_pillar_calculate_angle_in_front_of_mario();
@@ -91,7 +91,7 @@ void bhv_falling_pillar_loop(void) {
             break;
 
         case FALLING_PILLAR_ACT_FALLING:
-            func_802E4204();
+            object_step_without_floor_orient();
 
             // Start falling slowly, with increasing acceleration each frame.
             o->oFallingPillarPitchAcceleration += 4.0f;
@@ -105,14 +105,14 @@ void bhv_falling_pillar_loop(void) {
                 o->oPosZ += coss(o->oFaceAngleYaw) * 500.0f;
 
                 // Make the camera shake and spawn dust clouds.
-                func_8027F440(2, o->oPosX, o->oPosY, o->oPosZ);
-                func_802AA618(0, 0, 92.0f);
+                set_camera_shake_from_point(SHAKE_POS_MEDIUM, o->oPosX, o->oPosY, o->oPosZ);
+                spawn_mist_particles_variable(0, 0, 92.0f);
 
                 // Go invisible.
-                o->activeFlags = 0;
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
                 // Play the hitting the ground sound.
-                create_sound_spawner(SOUND_GENERAL_BIGPOUND);
+                create_sound_spawner(SOUND_GENERAL_BIG_POUND);
             }
             break;
     }
@@ -136,9 +136,9 @@ void bhv_falling_pillar_hitbox_loop(void) {
     o->oPosZ = sins(pitch) * coss(yaw) * yOffset + z;
 
     // Give these a hitbox so they can collide with Mario.
-    set_object_hitbox(o, &sFallingPillarHitbox);
+    obj_set_hitbox(o, &sFallingPillarHitbox);
 
     // When the pillar goes inactive, the hitboxes also go inactive.
-    if (o->parentObj->activeFlags == 0)
-        o->activeFlags = 0;
+    if (o->parentObj->activeFlags == ACTIVE_FLAG_DEACTIVATED)
+        o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 }

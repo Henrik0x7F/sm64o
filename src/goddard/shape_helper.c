@@ -1,22 +1,24 @@
-#include <ultra64.h>
-#include <macros.h>
+#include <PR/ultratypes.h>
 
-#include "gd_types.h"
-#include "shape_helper.h"
-#include "gd_main.h"
+#include "debug_utils.h"
 #include "draw_objects.h"
+#include "dynlist_proc.h"
+#include "dynlists/dynlist_macros.h"
+#include "dynlists/dynlists.h"
+#include "gd_main.h"
+#include "gd_math.h"
+#include "gd_types.h"
+#include "joints.h"
+#include "macros.h"
 #include "objects.h"
 #include "particles.h"
-#include "dynlist_proc.h"
-#include "debug_utils.h"
-#include "joints.h"
-#include "skin.h"
-#include "gd_math.h"
 #include "renderer.h"
+#include "shape_helper.h"
+#include "skin.h"
 
-#include "dynlists/dynlists.h"
-#include "dynlists/dynlist_macros.h"
+#ifndef VERSION_EU
 #include <prevent_bss_reordering.h>
+#endif
 
 // types
 struct UnkData {
@@ -29,8 +31,8 @@ struct UnkData {
 struct ObjGroup *gMarioFaceGrp = NULL;     // @ 801A82E0; returned by load_dynlist
 struct ObjShape *D_801A82E4 = NULL;        // Shape used for drawing lights?
 static struct ObjShape *D_801A82E8 = NULL; // returned by load_dynlist
-struct ObjShape *gShapeSilSpark = NULL;    // @ 801A82EC
-struct ObjShape *gShapeRedSpark = NULL;    // @ 801A82F0
+struct ObjShape *gShapeRedSpark = NULL;    // @ 801A82EC
+struct ObjShape *gShapeSilverSpark = NULL;    // @ 801A82F0
 struct ObjShape *gShapeRedStar = NULL;     // @ 801A82F4
 struct ObjShape *gShapeSilverStar = NULL;  // @ 801A82F8
 static struct UnkData sUnref801A82FC = { { {
@@ -183,7 +185,7 @@ void calc_face_normal(struct ObjFace *face) {
         sp2C.z =
             (((sp44.x - sp50.x) * (sp38.y - sp44.y)) - ((sp44.y - sp50.y) * (sp38.x - sp44.x))) * sp18;
         // 245C84
-        into_unit_vec3f(&sp2C);
+        gd_normalize_vec3f(&sp2C);
         face->normal.x = sp2C.x;
         face->normal.y = sp2C.y;
         face->normal.z = sp2C.z;
@@ -206,7 +208,7 @@ struct ObjVertex *gd_make_vertex(f32 x, f32 y, f32 z) {
     vtx->initPos.y = y;
     vtx->initPos.z = z;
 
-    vtx->unk3C = 1.0f;
+    vtx->scaleFactor = 1.0f;
     vtx->gbiVerts = NULL;
     vtx->alpha = 1.0f;
 
@@ -486,16 +488,16 @@ void Unknown80198068(UNUSED f32 a0) {
 
 /* @ 24684C for 0x6C */
 void func_8019807C(struct ObjVertex *vtx) {
-    func_80194880(D_801BAC60.x, &vtx->pos.y, &vtx->pos.z);
-    func_80194880(D_801BAC60.y, &vtx->pos.x, &vtx->pos.z);
-    func_80194880(D_801BAC60.z, &vtx->pos.x, &vtx->pos.y);
+    gd_rot_2d_vec(D_801BAC60.x, &vtx->pos.y, &vtx->pos.z);
+    gd_rot_2d_vec(D_801BAC60.y, &vtx->pos.x, &vtx->pos.z);
+    gd_rot_2d_vec(D_801BAC60.z, &vtx->pos.x, &vtx->pos.y);
 }
 
 /* @ 2468B8 for 0x6C */
 void func_801980E8(f32 *a0) {
-    func_80194880(D_801BAC60.x, &a0[1], &a0[2]);
-    func_80194880(D_801BAC60.y, &a0[0], &a0[2]);
-    func_80194880(D_801BAC60.z, &a0[0], &a0[1]);
+    gd_rot_2d_vec(D_801BAC60.x, &a0[1], &a0[2]);
+    gd_rot_2d_vec(D_801BAC60.y, &a0[0], &a0[2]);
+    gd_rot_2d_vec(D_801BAC60.z, &a0[0], &a0[1]);
 }
 
 /* @ 246924 for 0x30 */
@@ -883,7 +885,7 @@ struct ObjMaterial *find_or_add_new_mtl(struct ObjGroup *group, UNUSED s32 a1, f
     }
 
     newMtl = make_material(0, NULL, 1);
-    set_cur_dynobj(newMtl);
+    set_cur_dynobj((struct GdObj *)newMtl);
     d_set_diffuse(r, g, b);
     addto_group(group, (struct GdObj *) newMtl);
 
@@ -1344,21 +1346,21 @@ s32 load_mario_head(void (*aniFn)(struct ObjAnimator *)) {
     sp24->unk60 = 3;
     sp24->unk64 = 3;
     sp24->unkBC = &sp2C->header;
-    sp24->unk1C = gShapeRedSpark;
+    sp24->unk1C = gShapeSilverSpark;
     addto_group(gGdLightGroup, &sp24->header);
 
     sp24 = make_particle(0, 1, 0.0f, 0.0f, 0.0f);
     sp24->unk60 = 3;
     sp24->unk64 = 2;
     sp24->unkBC = d_use_obj("N228l"); // probably a camera
-    sp24->unk1C = gShapeRedSpark;
+    sp24->unk1C = gShapeSilverSpark;
     addto_group(gGdLightGroup, &sp24->header);
 
     sp24 = make_particle(0, 2, 0.0f, 0.0f, 0.0f);
     sp24->unk60 = 3;
     sp24->unk64 = 2;
     sp24->unkBC = d_use_obj("N231l"); // probably a camera
-    sp24->unk1C = gShapeSilSpark;
+    sp24->unk1C = gShapeRedSpark;
     addto_group(gGdLightGroup, &sp24->header);
 
     sp3C = (struct ObjGroup *) d_use_obj("N1000l");
@@ -1415,7 +1417,7 @@ s32 load_mario_head(void (*aniFn)(struct ObjAnimator *)) {
     sp34 = d_use_obj("N112l");
     sp30->unk1F8 = make_group(1, sp34);
 
-    sp30->fn2C = &Proc8018EBE8;
+    sp30->fn2C = &func_8018EBE8;
     sp30->unk1D0 = sp28;
     sp30->header.drawFlags &= ~OBJ_IS_GRABBALE;
 
@@ -1423,7 +1425,7 @@ s32 load_mario_head(void (*aniFn)(struct ObjAnimator *)) {
     sp34 = d_use_obj("N96l");
     sp30->unk1F8 = make_group(1, sp34);
 
-    sp30->fn2C = &Proc8018EBE8;
+    sp30->fn2C = &func_8018EBE8;
     sp30->unk1D0 = sp28;
     sp30->header.drawFlags &= ~OBJ_IS_GRABBALE;
 

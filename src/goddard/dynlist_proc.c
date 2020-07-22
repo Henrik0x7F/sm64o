@@ -1,22 +1,21 @@
-#include <ultra64.h>
-#include <macros.h>
-#include <config.h>
-#include "gd_types.h"
-#include "bad_declarations.h"
-#include "prevent_bss_reordering.h"
+#include <PR/ultratypes.h>
+#include <stdio.h>
 
-#include "gd_main.h"
-#include "draw_objects.h"
-#include "objects.h"
-#include "particles.h"
-#include "dynlist_proc.h"
-#include "old_menu.h"
+#include "bad_declarations.h"
 #include "debug_utils.h"
-#include "joints.h"
-#include "skin.h"
+#include "draw_objects.h"
+#include "dynlist_proc.h"
+#include "gd_main.h"
 #include "gd_math.h"
-#include "shape_helper.h"
+#include "gd_types.h"
+#include "joints.h"
+#include "macros.h"
+#include "objects.h"
+#include "old_menu.h"
+#include "particles.h"
 #include "renderer.h"
+#include "shape_helper.h"
+#include "skin.h"
 
 /**
  * @file dynlist_proc.c
@@ -201,7 +200,7 @@ struct GdObj *proc_dynlist(struct DynList *dylist) {
                 break;
             case 50:
                 d_add_valptr(Dyn1AsID(dylist), (u32) DynVecY(dylist), Dyn2AsInt(dylist),
-                             (u32) DynVecX(dylist));
+                             (size_t) DynVecX(dylist));
                 break;
             case 29:
                 d_link_with_ptr(Dyn1AsPtr(dylist));
@@ -629,13 +628,10 @@ struct GdObj *d_makeobj(enum DObjTypes type, DynId id) {
             d_makeobj(D_GROUP, id);
             ((struct ObjGroup *) sDynListCurObj)->linkType = 1;
 //! @bug Returns garbage when making `D_DATA_GRP` object
-#if BUGFIX_GODDARD_MISSING_RETURN
+#ifdef AVOID_UB
             return NULL;
 #else
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
             return;
-#pragma GCC diagnostic pop
 #endif
         case D_CAMERA:
             dobj = &make_camera(0, NULL)->header;
@@ -938,9 +934,9 @@ void alloc_animdata(struct ObjAnimator *animator) {
                     tri.p2.y = (f32)(*halfarr)[7];
                     tri.p2.z = (f32)(*halfarr)[8];
 
-                    set_identity_mat4(&curMtxVec->matrix);
-                    func_80194220(&curMtxVec->matrix, &tri.p1);
-                    func_801942E4(&curMtxVec->matrix, &tri.p2);
+                    gd_set_identity_mat4(&curMtxVec->matrix);
+                    gd_rot_mat_about_vec(&curMtxVec->matrix, &tri.p1);
+                    gd_add_vec3f_to_mat4f_offset(&curMtxVec->matrix, &tri.p2);
 
                     ((struct AnimMtxVec *) allocSpace)[dataIdx].vec.x = tri.p0.x;
                     ((struct AnimMtxVec *) allocSpace)[dataIdx].vec.y = tri.p0.y;
@@ -1049,11 +1045,11 @@ void chk_shapegen(struct ObjShape *shape) {
                     vtxbuf[i]->normal.x = vtxbuf[i]->pos.x;
                     vtxbuf[i]->normal.y = vtxbuf[i]->pos.y;
                     vtxbuf[i]->normal.z = vtxbuf[i]->pos.z;
-                    into_unit_vec3f(&vtxbuf[i]->normal);
+                    gd_normalize_vec3f(&vtxbuf[i]->normal);
                 }
             } else {
                 for (i = 0; i < vtxdata->count; i++) {
-                    into_unit_vec3f(&vtxbuf[i]->normal);
+                    gd_normalize_vec3f(&vtxbuf[i]->normal);
                 }
             }
 
@@ -2058,7 +2054,7 @@ void d_set_normal(f32 x, f32 y, f32 z) {
     normal.x = x;
     normal.y = y;
     normal.z = z;
-    into_unit_vec3f(&normal);
+    gd_normalize_vec3f(&normal);
 
     switch (sDynListCurObj->type) {
         case OBJ_TYPE_VERTICES:
@@ -2318,7 +2314,7 @@ void d_set_shape_offset(f32 x, f32 y, f32 z) {
  *
  * @param type `::ValPtrType`
  */
-void d_add_valptr(DynId objId, u32 vflags, s32 type, u32 offset) {
+void d_add_valptr(DynId objId, u32 vflags, s32 type, size_t offset) {
     struct GdObj *dynobj;      // sp2C
     struct ObjValPtrs *valptr; // sp28
     struct DynObjInfo *info;   // sp24
@@ -2922,20 +2918,20 @@ void d_get_matrix(Mat4f *dst) {
     dynobj = sDynListCurObj;
     switch (sDynListCurObj->type) {
         case OBJ_TYPE_NETS:
-            cpy_mat4(&((struct ObjNet *) dynobj)->mat128, dst);
+            gd_copy_mat4f(&((struct ObjNet *) dynobj)->mat128, dst);
             break;
             break; // lol
         case OBJ_TYPE_JOINTS:
-            cpy_mat4(&((struct ObjJoint *) dynobj)->matE8, dst);
+            gd_copy_mat4f(&((struct ObjJoint *) dynobj)->matE8, dst);
             break;
         case OBJ_TYPE_CAMERAS:
-            cpy_mat4(&((struct ObjCamera *) dynobj)->unkE8, dst);
+            gd_copy_mat4f(&((struct ObjCamera *) dynobj)->unkE8, dst);
             break;
         case OBJ_TYPE_PARTICLES:
-            set_identity_mat4(dst);
+            gd_set_identity_mat4(dst);
             break;
         case OBJ_TYPE_SHAPES:
-            set_identity_mat4(dst);
+            gd_set_identity_mat4(dst);
             break;
         default:
             fatal_printf("%s: Object '%s'(%x) does not support this function.", "dGetMatrix()",
@@ -2953,16 +2949,16 @@ void d_set_matrix(Mat4f *src) {
 
     switch (sDynListCurObj->type) {
         case OBJ_TYPE_NETS:
-            cpy_mat4(src, &((struct ObjNet *) sDynListCurObj)->mat128);
+            gd_copy_mat4f(src, &((struct ObjNet *) sDynListCurObj)->mat128);
             //! @bug When setting an `ObjNet` matrix, the source is copied twice
             //!      due to a probable copy-paste line repeat error
-            cpy_mat4(src, &((struct ObjNet *) sDynListCurObj)->mat128);
+            gd_copy_mat4f(src, &((struct ObjNet *) sDynListCurObj)->mat128);
             break;
         case OBJ_TYPE_JOINTS:
-            cpy_mat4(src, &((struct ObjJoint *) sDynListCurObj)->matE8);
+            gd_copy_mat4f(src, &((struct ObjJoint *) sDynListCurObj)->matE8);
             break;
         case OBJ_TYPE_CAMERAS:
-            cpy_mat4(src, &((struct ObjCamera *) sDynListCurObj)->unk64);
+            gd_copy_mat4f(src, &((struct ObjCamera *) sDynListCurObj)->unk64);
             break;
         default:
             fatal_printf("%s: Object '%s'(%x) does not support this function.", "dSetMatrix()",
@@ -2981,10 +2977,10 @@ void d_set_rot_mtx(Mat4f *src) {
 
     switch (sDynListCurObj->type) {
         case OBJ_TYPE_JOINTS:
-            cpy_mat4(src, &((struct ObjJoint *) sDynListCurObj)->mat128);
+            gd_copy_mat4f(src, &((struct ObjJoint *) sDynListCurObj)->mat128);
             break;
         case OBJ_TYPE_NETS:
-            cpy_mat4(src, &((struct ObjJoint *) sDynListCurObj)->mat168);
+            gd_copy_mat4f(src, &((struct ObjNet *) sDynListCurObj)->mat168);
             break;
         default:
             fatal_printf("%s: Object '%s'(%x) does not support this function.", "dSetRMatrix()",
@@ -3004,7 +3000,7 @@ Mat4f *d_get_rot_mtx_ptr(void) {
         case OBJ_TYPE_JOINTS:
             return &((struct ObjJoint *) sDynListCurObj)->mat128;
         case OBJ_TYPE_NETS:
-            return &((struct ObjJoint *) sDynListCurObj)->mat168;
+            return &((struct ObjNet *) sDynListCurObj)->mat168;
         default:
             fatal_printf("%s: Object '%s'(%x) does not support this function.", "dGetRMatrixPtr()",
                          sDynListCurInfo->name, sDynListCurObj->type);
@@ -3025,10 +3021,10 @@ void d_set_idn_mtx(Mat4f *src) {
     dynobj = sDynListCurObj;
     switch (sDynListCurObj->type) {
         case OBJ_TYPE_NETS:
-            cpy_mat4(src, &((struct ObjNet *) dynobj)->matE8);
+            gd_copy_mat4f(src, &((struct ObjNet *) dynobj)->matE8);
             break;
         case OBJ_TYPE_JOINTS:
-            cpy_mat4(src, &((struct ObjNet *) dynobj)->mat168);
+            gd_copy_mat4f(src, &((struct ObjJoint *) dynobj)->mat168);
             break;
         case OBJ_TYPE_LIGHTS:
             ((struct ObjLight *) dynobj)->position.x = (*src)[3][0];
@@ -3112,7 +3108,7 @@ f32 d_calc_world_dist_btwn(struct GdObj *obj1, struct GdObj *obj2) {
     posdiff.y = obj2pos.y - obj1pos.y;
     posdiff.z = obj2pos.z - obj1pos.z;
 
-    return magnitude_vec3f(&posdiff);
+    return gd_vec3f_magnitude(&posdiff);
 }
 
 /**

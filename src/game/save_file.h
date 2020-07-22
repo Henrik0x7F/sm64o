@@ -1,8 +1,12 @@
-#ifndef _SAVE_FILE_H_
-#define _SAVE_FILE_H_
+#ifndef SAVE_FILE_H
+#define SAVE_FILE_H
+
+#include <PR/ultratypes.h>
 
 #include "types.h"
 #include "area.h"
+
+#include "course_table.h"
 
 #define EEPROM_SIZE 0x200
 #define NUM_SAVE_FILES 4
@@ -34,6 +38,13 @@ struct SaveFile
     struct SaveBlockSignature signature;
 };
 
+enum SaveFileIndex {
+    SAVE_FILE_A,
+    SAVE_FILE_B,
+    SAVE_FILE_C,
+    SAVE_FILE_D
+};
+
 struct MainMenuSaveData
 {
     // Each save file has a 2 bit "age" for each course. The higher this value,
@@ -62,8 +73,6 @@ struct SaveBuffer
     // The main menu data has two copies. If one is bad, the other is used as a backup.
     struct MainMenuSaveData menuData[2];
 };
-
-struct WarpNode;
 
 extern u8 gLastCompletedCourseNum;
 extern u8 gLastCompletedStarNum;
@@ -114,7 +123,7 @@ extern s8 gSaveFileModified;
 
 void save_file_do_save(s32 fileIndex);
 void save_file_erase(s32 fileIndex);
-void save_file_copy(s32 srcFileIndex, s32 destFileIndex);
+BAD_RETURN(s32) save_file_copy(s32 srcFileIndex, s32 destFileIndex);
 void save_file_load_all(void);
 void save_file_reload(void);
 void save_file_collect_star_or_key(s16 coinScore, s16 starIndex);
@@ -122,11 +131,11 @@ s32 save_file_exists(s32 fileIndex);
 u32 save_file_get_max_coin_score(s32 courseIndex);
 s32 save_file_get_course_star_count(s32 fileIndex, s32 courseIndex);
 s32 save_file_get_total_star_count(s32 fileIndex, s32 minCourse, s32 maxCourse);
-void save_file_set_flags(s32 flags);
-void save_file_clear_flags(s32 flags);
-s32 save_file_get_flags(void);
-s32 save_file_get_star_flags(s32 fileIndex, s32 courseIndex);
-void save_file_set_star_flags(s32 fileIndex, s32 courseIndex, s32 starFlags);
+void save_file_set_flags(u32 flags);
+void save_file_clear_flags(u32 flags);
+u32 save_file_get_flags(void);
+u32 save_file_get_star_flags(s32 fileIndex, s32 courseIndex);
+void save_file_set_star_flags(s32 fileIndex, s32 courseIndex, u32 starFlags);
 s32 save_file_get_course_coin_score(s32 fileIndex, s32 courseIndex);
 s32 save_file_is_cannon_unlocked(void);
 void save_file_set_cannon_unlocked(void);
@@ -137,16 +146,18 @@ u16 save_file_get_sound_mode(void);
 void save_file_move_cap_to_default_location(void);
 
 void disable_warp_checkpoint(void);
-void check_if_should_set_warp_checkpoint(struct WarpNode *a);
-s32 check_warp_checkpoint(struct WarpNode *a);
+void check_if_should_set_warp_checkpoint(struct WarpNode *warpNode);
+s32 check_warp_checkpoint(struct WarpNode *warpNode);
 
 #ifdef VERSION_EU
-#define LANGUAGE_ENGLISH 0
-#define LANGUAGE_FRENCH  1
-#define LANGUAGE_GERMAN  2
+enum EuLanguages {
+    LANGUAGE_ENGLISH,
+    LANGUAGE_FRENCH,
+    LANGUAGE_GERMAN
+};
 
 void eu_set_language(u16 language);
 u16 eu_get_language(void);
 #endif
 
-#endif
+#endif // SAVE_FILE_H

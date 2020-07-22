@@ -99,9 +99,7 @@ void _Ldtob(printf_struct *args, u8 type) {
             if (exp > 0) {
                 factor = 1;
                 exp &= ~3;
-                n = exp;
-
-                for (i = 0; n > 0; n >>= 1, i++) {
+                for (n = exp, i = 0; n > 0; n >>= 1, i++) {
                     if ((n & 1) != 0) {
                         factor *= D_80338670[i];
                     }
@@ -276,7 +274,7 @@ static void _Genld(printf_struct *px, u8 code, u8 *p, s16 nsig, s16 xexp) {
         }
         *p++ = xexp / 10 + '0', xexp %= 10;
         *p++ = xexp + '0';
-        px->part3_len = (u32) p - (u32) &px->buff[px->part2_len];
+        px->part3_len = p - (u8 *) &px->buff[px->part2_len];
     }
     if ((px->flags & (FLAGS_ZERO | FLAGS_MINUS)) == FLAGS_ZERO) { /* pad with leading zeros */
         int n =

@@ -5,25 +5,14 @@
 
 .balign 16
 glabel rspF3DBootStart
-    .incbin "lib/PR/boot/F3D_boot.bin"
+    .incbin "rsp/rspboot.bin"
+.balign 16
 glabel rspF3DBootEnd
-
-/* 
- * Both of these ucode bins are 0x1000/0x800 respectively as defined in their
- * ucode initializations, but there's extra data afterwards. However, it's not the
- * RSP data as that is pointed to below in the rodata section. TODO: What are these
- * extra bins?
- */
 
 .balign 16
 .ifndef F3DEX_GBI_SHARED
 glabel rspF3DStart /* Use regular Fast3D bins (default) */
-    .ifndef F3D_OLD
-    .incbin "lib/PR/f3d/new/F3D.bin" /* OS 2.0H (J2 and IQ) */
-    .else
-    .incbin "lib/PR/f3d/old/F3D.bin" /* OS 2.0D (US and JP) */
-    .incbin "lib/PR/f3d/old/F3D_unk.bin"
-    .endif
+    .incbin "rsp/fast3d.bin"
 glabel rspF3DEnd
 
 .else /* Use one of the Fast3DEX series grucodes. */
@@ -42,8 +31,7 @@ glabel rspF3DEnd
 
 .balign 16
 glabel rspAspMainStart
-    .incbin "lib/PR/audio/aspMain.bin"
-    .incbin "lib/PR/audio/aspMain_unk.bin"
+    .incbin "rsp/audio.bin"
 glabel rspAspMainEnd
 
 /*
@@ -139,11 +127,7 @@ glabel rspS2DEXEnd
 .balign 16
 .ifndef F3DEX_GBI_SHARED /* Use regular Fast3D data (default) */
 glabel rspF3DDataStart
-    .ifndef F3D_OLD /* OS 2.0H (J2 and IQ) */
-    .incbin "lib/PR/f3d/new/F3D_data.bin"
-    .else /* OS 2.0D (US and JP) */
-    .incbin "lib/PR/f3d/old/F3D_data.bin"
-    .endif
+    .incbin "rsp/fast3d_data.bin"
 glabel rspF3DDataEnd
 
 .else /* Using one of the Fast3DEX series grucodes */
@@ -162,7 +146,7 @@ glabel rspF3DDataEnd
 
 .balign 16
 glabel rspAspMainDataStart
-    .incbin "lib/PR/audio/aspMain_data.bin"
+    .incbin "rsp/audio_data.bin"
 glabel rspAspMainDataEnd
 
 /* LESS COMMON MICROCODES */

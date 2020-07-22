@@ -1,7 +1,7 @@
 /**
  * Behavior for bhvBetaTrampolineTop and bhvBetaTrampolineSpring.
  * This was a trampoline that was never finished. The model and collision
- * are nearly complete finished, but the code was abandoned very early on
+ * are nearly finished, but the code was abandoned very early on
  * in its development. The trampoline consists of 3 objects: the top,
  * the spring, and the base. The base is a static object with no behavior.
  */
@@ -20,8 +20,8 @@ void bhv_beta_trampoline_spring_loop(void) {
     f32 yDisplacement;
 
     // Update to be 75 units under the trampoline top
-    copy_object_pos_and_angle(o, o->parentObj);
-    copy_object_graph_y_offset(o, o->parentObj);
+    obj_copy_pos_and_angle(o, o->parentObj);
+    obj_copy_graph_y_offset(o, o->parentObj);
     o->oPosY -= 75.0f;
 
     // If the trampoline top is above its original position,
@@ -42,7 +42,7 @@ void bhv_beta_trampoline_spring_loop(void) {
     }
 
     // Scale the spring
-    scale_object_xyz(o, 1.0f, yScale, 1.0f);
+    obj_scale_xyz(o, 1.0f, yScale, 1.0f);
 }
 
 /**
@@ -53,7 +53,7 @@ void bhv_beta_trampoline_spring_loop(void) {
  * do anything.
  */
 void bhv_beta_trampoline_top_loop(void) {
-    obj_set_model(MODEL_TRAMPOLINE);
+    cur_obj_set_model(MODEL_TRAMPOLINE);
 
     // When initialized, spawn the rest of the trampoline
     if (o->oTimer == 0) {
@@ -83,5 +83,5 @@ void bhv_beta_trampoline_top_loop(void) {
     // that the trampoline is currently in use. This potential
     // trampoline infrastructure is found in mario_step.c. See
     // that file for more details.
-    nop_80254E50();
+    stub_mario_step_2();
 }

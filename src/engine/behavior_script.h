@@ -1,29 +1,30 @@
-#ifndef _BEHAVIOR_SCRIPT_H_
-#define _BEHAVIOR_SCRIPT_H_
+#ifndef BEHAVIOR_SCRIPT_H
+#define BEHAVIOR_SCRIPT_H
 
-#define BEH_BREAK    1
-#define BEH_CONTINUE 0
+#include <PR/ultratypes.h>
 
-#define cur_object_get_int(offset) gCurrentObject->OBJECT_FIELD_S32(offset)
-#define cur_object_get_float(offset) gCurrentObject->OBJECT_FIELD_F32(offset)
+#define BHV_PROC_CONTINUE 0
+#define BHV_PROC_BREAK    1
 
-#define cur_object_add_float(offset, value) gCurrentObject->OBJECT_FIELD_F32(offset) += (f32)(value)
-#define cur_object_set_float(offset, value) gCurrentObject->OBJECT_FIELD_F32(offset) = (f32)(value)
-#define cur_object_add_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) += (s32)(value)
-#define cur_object_set_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) = (s32)(value)
-#define cur_object_or_int(offset, value)  gCurrentObject->OBJECT_FIELD_S32(offset) |= (s32)(value)
-#define cur_object_and_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) &= (s32)(value)
+#define cur_obj_get_int(offset) gCurrentObject->OBJECT_FIELD_S32(offset)
+#define cur_obj_get_float(offset) gCurrentObject->OBJECT_FIELD_F32(offset)
 
-#define object_and_int(object, offset, value) object->OBJECT_FIELD_S32(offset) &= (s32)(value)
+#define cur_obj_add_float(offset, value) gCurrentObject->OBJECT_FIELD_F32(offset) += (f32)(value)
+#define cur_obj_set_float(offset, value) gCurrentObject->OBJECT_FIELD_F32(offset) = (f32)(value)
+#define cur_obj_add_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) += (s32)(value)
+#define cur_obj_set_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) = (s32)(value)
+#define cur_obj_or_int(offset, value)  gCurrentObject->OBJECT_FIELD_S32(offset) |= (s32)(value)
+#define cur_obj_and_int(offset, value) gCurrentObject->OBJECT_FIELD_S32(offset) &= (s32)(value)
+#define cur_obj_set_vptr(offset, value) gCurrentObject->OBJECT_FIELD_VPTR(offset) = (void *)(value)
 
-u16 RandomU16(void);
-float RandomFloat(void);
-s32 RandomSign(void);
+#define obj_and_int(object, offset, value) object->OBJECT_FIELD_S32(offset) &= (s32)(value)
 
-void func_80383D68(struct Object *object);
+u16 random_u16(void);
+float random_float(void);
+s32 random_sign(void);
 
-void stub_80385BF0(void);
+void stub_behavior_script_2(void);
 
-void cur_object_exec_behavior(void);
+void cur_obj_update(void);
 
-#endif /* _BEHAVIOR_SCRIPT_H_ */
+#endif // BEHAVIOR_SCRIPT_H

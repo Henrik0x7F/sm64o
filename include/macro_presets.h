@@ -1,5 +1,5 @@
-#ifndef _MACRO_PRESETS_H
-#define _MACRO_PRESETS_H
+#ifndef MACRO_PRESETS_H
+#define MACRO_PRESETS_H
 
 #include "macro_preset_names.h"
 #include "behavior_data.h"
@@ -7,7 +7,7 @@
 
 struct MacroPreset
 {
-    /*0x00*/ u32 *beh;
+    /*0x00*/ const BehaviorScript *behavior;
     /*0x04*/ s16 model;
     /*0x06*/ s16 param;
 };
@@ -151,7 +151,7 @@ struct MacroPreset MacroObjectPresets[] = {
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
     {bhvStaticObject, MODEL_KLEPTO, 0}, // unused
-    {bhvTornado, MODEL_TORNADO, 0}, // unused
+    {bhvTweester, MODEL_TWEESTER, 0}, // unused
     {bhvPokey, MODEL_NONE, 0},
     {bhvPokey, MODEL_NONE, 0}, // unused
     {bhvToxBox, MODEL_SSL_TOX_BOX, 0}, // unused
@@ -169,7 +169,7 @@ struct MacroPreset MacroObjectPresets[] = {
     {bhvMontyMoleHole, MODEL_DL_MONTY_MOLE_HOLE, 0},
     {bhvFlyGuy, MODEL_FLYGUY, 0},
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
-    {bhvWiggler, MODEL_WIGGLER, 0}, // unused
+    {bhvWigglerHead, MODEL_WIGGLER_HEAD, 0}, // unused
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0},
@@ -381,4 +381,4 @@ struct MacroPreset MacroObjectPresets[] = {
     {bhvYellowCoin, MODEL_YELLOW_COIN, 0}
 };
 
-#endif // _MACRO_PRESETS_H
+#endif // MACRO_PRESETS_H

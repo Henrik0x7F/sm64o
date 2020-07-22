@@ -1,5 +1,5 @@
-#ifndef _SPECIAL_PRESETS_H
-#define _SPECIAL_PRESETS_H
+#ifndef SPECIAL_PRESETS_H
+#define SPECIAL_PRESETS_H
 
 #include "special_preset_names.h"
 #include "behavior_data.h"
@@ -17,13 +17,13 @@ struct SpecialPreset
     /*00*/ u8  preset_id;
     /*01*/ u8  type;      // Determines whether object is 8, 10, 12 or 14 bytes long.
     /*02*/ u8  defParam;  // Default parameter, only used when type is SPTYPE_DEF_PARAM_AND_YROT
-    /*03*/ u8  model;     
-    /*04*/ u32 *behavior;
+    /*03*/ u8  model;
+    /*04*/ const BehaviorScript *behavior;
 };
 
 // Some Models ID's are missing their names because they are probably unused
 
-static struct SpecialPreset SpecialObjectPresets[] = 
+static struct SpecialPreset SpecialObjectPresets[] =
 {
     {0x00, SPTYPE_YROT_NO_PARAMS    , 0x00, MODEL_NONE, NULL},
     {0x01, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_YELLOW_COIN, bhvYellowCoin},
@@ -41,7 +41,7 @@ static struct SpecialPreset SpecialObjectPresets[] =
     {0x0D, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_LLL_ROTATING_HEXAGONAL_RING , bhvLllRotatingHexagonalRing},
     {0x0E, SPTYPE_YROT_NO_PARAMS    , 0x00, MODEL_LLL_SINKING_RECTANGULAR_PLATFORM, bhvLllSinkingRectangularPlatform},
     {0x0F, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_LLL_SINKING_SQUARE_PLATFORMS, bhvLllSinkingSquarePlatforms},
-    {0x10, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_LLL_TILTING_SQUARE_PLATFORM, bhvLllTiltingSquarePlatform},
+    {0x10, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_LLL_TILTING_SQUARE_PLATFORM, bhvLllTiltingInvertedPyramid},
     {0x11, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_NONE, bhvLllBowserPuzzle},
     {0x12, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_NONE, bhvMrI},
     {0x13, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_BULLY, bhvSmallBully},
@@ -110,4 +110,4 @@ static struct SpecialPreset SpecialObjectPresets[] =
     {0xFF, SPTYPE_NO_YROT_OR_PARAMS , 0x00, MODEL_NONE, NULL}
 };
 
-#endif // _SPECIAL_PRESETS_H
+#endif // SPECIAL_PRESETS_H

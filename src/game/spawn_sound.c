@@ -1,13 +1,14 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
-#include "engine/behavior_script.h"
-#include "object_helpers.h"
 #include "audio/external.h"
-#include "spawn_sound.h"
+#include "behavior_data.h"
+#include "engine/behavior_script.h"
+#include "engine/graph_node.h"
+#include "object_helpers.h"
 #include "object_list_processor.h"
-
-extern void *bhvSoundSpawner;
+#include "sm64.h"
+#include "spawn_sound.h"
+#include "thread6.h"
 
 /*
  * execute an object's current sound state with a provided array
@@ -18,7 +19,7 @@ void exec_anim_sound_state(struct SoundState *soundStates) {
     s32 stateIdx = gCurrentObject->oSoundStateID;
 
     switch (soundStates[stateIdx].playSound) {
-        // since we have an array of sound states cooresponding to
+        // since we have an array of sound states corresponding to
         // various behaviors, not all entries intend to play sounds. the
         // boolean being 0 for unused entries skips these states.
         case FALSE:
@@ -29,14 +30,14 @@ void exec_anim_sound_state(struct SoundState *soundStates) {
             // in the sound state information, -1 (0xFF) is for empty
             // animFrame entries. These checks skips them.
             if ((animFrame = soundStates[stateIdx].animFrame1) >= 0) {
-                if (obj_check_anim_frame(animFrame)) {
-                    PlaySound2(soundStates[stateIdx].soundMagic);
+                if (cur_obj_check_anim_frame(animFrame)) {
+                    cur_obj_play_sound_2(soundStates[stateIdx].soundMagic);
                 }
             }
 
             if ((animFrame = soundStates[stateIdx].animFrame2) >= 0) {
-                if (obj_check_anim_frame(animFrame)) {
-                    PlaySound2(soundStates[stateIdx].soundMagic);
+                if (cur_obj_check_anim_frame(animFrame)) {
+                    cur_obj_play_sound_2(soundStates[stateIdx].soundMagic);
                 }
             }
         } break;
@@ -48,26 +49,36 @@ void exec_anim_sound_state(struct SoundState *soundStates) {
  * (Breakable walls, King Bobomb exploding, etc)
  */
 void create_sound_spawner(s32 soundMagic) {
-    struct Object *obj = spawn_object(gCurrentObject, 0, &bhvSoundSpawner);
+    struct Object *obj = spawn_object(gCurrentObject, 0, bhvSoundSpawner);
 
     obj->oSoundEffectUnkF4 = soundMagic;
 }
 
 /*
- * The following 2 functions are relevent to the sound state function
- * above. While only PlaySound2 is used, they may have been intended as
- * seperate left/right leg functions that went unused.
+ * The following 2 functions are relevant to the sound state function
+ * above. While only cur_obj_play_sound_2 is used, they may have been intended as
+ * separate left/right leg functions that went unused.
  */
-void PlaySound(s32 soundMagic) {
-    if (gCurrentObject->header.gfx.node.flags & 0x0001) {
+void cur_obj_play_sound_1(s32 soundMagic) {
+    if (gCurrentObject->header.gfx.node.flags & GRAPH_RENDER_ACTIVE) {
         play_sound(soundMagic, gCurrentObject->header.gfx.cameraToObject);
     }
 }
 
-// duplicate function, but its the used one
-void PlaySound2(s32 soundMagic) {
-    if (gCurrentObject->header.gfx.node.flags & 0x0001) {
+void cur_obj_play_sound_2(s32 soundMagic) {
+    if (gCurrentObject->header.gfx.node.flags & GRAPH_RENDER_ACTIVE) {
         play_sound(soundMagic, gCurrentObject->header.gfx.cameraToObject);
+#ifdef VERSION_SH
+        if (soundMagic == SOUND_OBJ_BOWSER_WALK) {
+            queue_rumble_data(3, 60);
+        }
+        if (soundMagic == SOUND_OBJ_POUNDING_LOUD) {
+            queue_rumble_data(3, 60);
+        }
+        if (soundMagic == SOUND_OBJ_WHOMP_LOWPRIO) {
+            queue_rumble_data(5, 80);
+        }
+#endif
     }
 }
 
@@ -80,7 +91,7 @@ void PlaySound2(s32 soundMagic) {
  * might show that the developers were testing several ranges, or certain
  * objects had different ranges, or had these for other unknown purposes.
  * Technically, these functions are only educated guesses. Trust these
- * interpretations at your own discrection.
+ * interpretations at your own discretion.
  */
 int calc_dist_to_volume_range_1(f32 distance) // range from 60-124
 {

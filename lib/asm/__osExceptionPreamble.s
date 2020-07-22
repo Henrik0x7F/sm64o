@@ -4,19 +4,25 @@
 
 .include "macros.inc"
 
+.ifdef VERSION_SH
+.set VERSION_EU, 1 # HACK, someone fix this file, its poorly diff'd!
+.endif
 
 .section .text, "ax"
 
+.ifdef AVOID_UB
+.set D_80334890, D_80334890_fix
+.endif
+
 glabel __osExceptionPreamble
-    lui   $k0, %hi(__osException) # $k0, 0x8032
-    addiu $k0, %lo(__osException) # addiu $k0, $k0, 0x66d0
+    lui   $k0, %hi(__osException)
+    addiu $k0, %lo(__osException)
     jr    $k0
      nop
 
-
 glabel __osException
-    lui   $k0, %hi(gInterruptedThread) # $k0, 0x8036
-    addiu $k0, %lo(gInterruptedThread) # addiu $k0, $k0, 0x5f40
+    lui   $k0, %hi(gInterruptedThread)
+    addiu $k0, %lo(gInterruptedThread)
     sd    $at, 0x20($k0)
     mfc0  $k1, $12
     sw    $k1, 0x118($k0)
@@ -28,6 +34,7 @@ glabel __osException
     sd    $t2, 0x68($k0)
     sw    $zero, 0x18($k0)
     mfc0  $t0, $13
+.ifndef VERSION_EU
     andi  $t1, $t0, 0x7c
     li    $t2, 0
     bne   $t1, $t2, .L80326750
@@ -37,7 +44,7 @@ glabel __osException
     beqz  $t2, .L80326734
      nop
     li    $t1, 1
-    lui   $at, %hi(D_80334934) # $at, 0x8033
+    lui   $at, %hi(D_80334934)
     b     .L80326794
      sw    $t1, %lo(D_80334934)($at)
 .L80326734:
@@ -45,17 +52,20 @@ glabel __osException
     beqz  $t2, .L80326750
      nop
     li    $t1, 1
-    lui   $at, %hi(D_80334938) # $at, 0x8033
+    lui   $at, %hi(D_80334938)
     b     .L80326794
      sw    $t1, %lo(D_80334938)($at)
 .L80326750:
-    lui   $at, %hi(D_80334934) # $at, 0x8033
+    lui   $at, %hi(D_80334934)
     sw    $zero, %lo(D_80334934)($at)
-    lui   $at, %hi(D_80334938) # $at, 0x8033
+    lui   $at, %hi(D_80334938)
+.endif
     move  $t0, $k0
+.ifndef VERSION_EU
     sw    $zero, %lo(D_80334938)($at)
-    lui   $k0, %hi(D_803348A0) # $k0, 0x8033
-    lw    $k0, %lo(D_803348A0)($k0)
+.endif
+    lui   $k0, %hi(D_80334890 + 0x10)
+    lw    $k0, %lo(D_80334890 + 0x10)($k0)
     ld    $t1, 0x20($t0)
     sd    $t1, 0x20($k0)
     ld    $t1, 0x118($t0)
@@ -66,10 +76,17 @@ glabel __osException
     sd    $t1, 0x60($k0)
     ld    $t1, 0x68($t0)
     sd    $t1, 0x68($k0)
+.ifdef VERSION_EU
+    lw    $k1, 0x118($k0)
+.else
 .L80326794:
+.endif
     mflo  $t0
     sd    $t0, 0x108($k0)
     mfhi  $t0
+.ifdef VERSION_EU
+    andi  $t1, $k1, 0xff00
+.endif
     sd    $v0, 0x28($k0)
     sd    $v1, 0x30($k0)
     sd    $a0, 0x38($k0)
@@ -95,7 +112,41 @@ glabel __osException
     sd    $sp, 0xf0($k0)
     sd    $fp, 0xf8($k0)
     sd    $ra, 0x100($k0)
+.ifdef VERSION_EU
+    beqz  $t1, .L802F3A18
+     sd    $t0, 0x110($k0)
+    lui   $t0, %hi(D_8030208C)
+    addiu $t0, %lo(D_8030208C)
+    lw    $t0, ($t0)
+    li    $at, -1
+    xor   $t0, $t0, $at
+    lui   $at, (0xFFFF00FF >> 16)
+    andi  $t0, $t0, 0xff00
+    ori   $at, (0xFFFF00FF & 0xFFFF)
+    or    $t1, $t1, $t0
+    and   $k1, $k1, $at
+    or    $k1, $k1, $t1
+    sw    $k1, 0x118($k0)
+.L802F3A18:
+    lui   $t1, %hi(MI_INTR_MASK_REG)
+    lw    $t1, %lo(MI_INTR_MASK_REG)($t1)
+    beqz  $t1, .L802F3A50
+     nop
+    lui   $t0, %hi(D_8030208C)
+    addiu $t0, %lo(D_8030208C)
+    lw    $t0, ($t0)
+    lw    $t4, 0x128($k0)
+    li    $at, -1
+    srl   $t0, $t0, 0x10
+    xor   $t0, $t0, $at
+    andi  $t0, $t0, 0x3f
+    and   $t0, $t0, $t4
+    or    $t1, $t1, $t0
+.L802F3A50:
+    sw    $t1, 0x128($k0)
+.else
     sd    $t0, 0x110($k0)
+.endif
     mfc0  $t0, $14
     sw    $t0, 0x11c($k0)
     lw    $t0, 0x18($k0)
@@ -123,45 +174,49 @@ glabel __osException
 .L80326868:
     mfc0  $t0, $13
     sw    $t0, 0x120($k0)
-    lui   $t1, %hi(D_A430000C) # $t1, 0xa430
-    lw    $t1, %lo(D_A430000C)($t1)
+.ifndef VERSION_EU
+    lui   $t1, %hi(MI_INTR_MASK_REG)
+    lw    $t1, %lo(MI_INTR_MASK_REG)($t1)
     sw    $t1, 0x128($k0)
+.endif
     li    $t1, 2
     sh    $t1, 0x10($k0)
-    lui   $t1, %hi(D_80334934) # $t1, 0x8033
+.ifndef VERSION_EU
+    lui   $t1, %hi(D_80334934)
     lw    $t1, %lo(D_80334934)($t1)
     beqz  $t1, .L803268B4
      nop
-    lui   $t2, %hi(D_C0000008) # $t2, 0xc000
+    lui   $t2, %hi(D_C0000008)
     sw    $zero, %lo(D_C0000008)($t2)
     lui   $a0, %hi(D_C0000000)
-    addiu $t2, %lo(D_C0000008) # addiu $t2, $t2, 8
+    addiu $t2, %lo(D_C0000008)
     jal   kdebugserver
      lw    $a0, %lo(D_C0000000)($a0)
     b     .L80326E08
      nop
 .L803268B4:
-    lui   $t1, %hi(D_80334938) # $t1, 0x8033
+    lui   $t1, %hi(D_80334938)
     lw    $t1, %lo(D_80334938)($t1)
     beqz  $t1, .L80326900
      nop
-    lui   $t2, %hi(D_C000000C) # $t2, 0xc000
+    lui   $t2, %hi(D_C000000C)
     sw    $zero, %lo(D_C000000C)($t2)
-    lui   $t1, %hi(D_80334A40) # $t1, 0x8033
+    lui   $t1, %hi(D_80334A40)
     lw    $t1, %lo(D_80334A40)($t1)
-    addiu $t2, %lo(D_C000000C) # addiu $t2, $t2, 0xc
+    addiu $t2, %lo(D_C000000C)
     beqz  $t1, .L803268E8
      nop
     jal   send_mesg
      li    $a0, 120
 .L803268E8:
-    lui   $t1, %hi(D_80334A44) # $t1, 0x8033
+    lui   $t1, %hi(D_80334A44)
     lw    $t1, %lo(D_80334A44)($t1)
-    lui   $at, %hi(D_80334A44) # $at, 0x8033
+    lui   $at, %hi(D_80334A44)
     addi  $t1, $t1, 1
     b     .L80326E08
      sw    $t1, %lo(D_80334A44)($at)
 .L80326900:
+.endif
     andi  $t1, $t0, 0x7c
     li    $t2, 36
     beq   $t1, $t2, .L80326B84
@@ -189,45 +244,89 @@ glabel __osException
     lw    $t2, %lo(jtbl_80338630)($at)
     jr    $t2
      nop
+.ifdef VERSION_EU
+glabel L802F3B28
+    li    $at, -8193
+    b     .L8032692C
+     and   $s0, $s0, $at
+glabel L802F3B34
+    li    $at, -16385
+    b     .L8032692C
+     and   $s0, $s0, $at
+.endif
 glabel L80326964
     mfc0  $t1, $11
     mtc0  $t1, $11
     jal   send_mesg
      li    $a0, 24
-    lui   $at, (0xFFFF7FFF >> 16) # lui $at, 0xffff
-    ori   $at, (0xFFFF7FFF & 0xFFFF) # ori $at, $at, 0x7fff
+    lui   $at, (0xFFFF7FFF >> 16)
+    ori   $at, (0xFFFF7FFF & 0xFFFF)
     b     .L8032692C
      and   $s0, $s0, $at
 glabel L80326984
+.ifdef VERSION_EU
+    li    $at, -2049
+    and   $s0, $s0, $at
+.endif
     li    $t2, 4
     lui   $at, %hi(D_80334920)
     addu  $at, $at, $t2
     lw    $t2, %lo(D_80334920)($at)
+.ifdef VERSION_EU
+    lui   $sp, %hi(D_80365E40)
+    addiu $sp, %lo(D_80365E40)
+    li    $a0, 16
+    beqz  $t2, .L803269A4
+     addiu $sp, $sp, 0xff0
+.else
     beqz  $t2, .L803269A4
      nop
+.endif
     jalr  $t2
     nop
+.ifdef VERSION_EU
+    beqz  $v0, .L803269A4
+     nop
+    b     .L80326B9C
+     nop
+.endif
 .L803269A4:
     jal   send_mesg
+.ifdef VERSION_EU
+     nop
+    b     .L8032692C
+     nop
+.else
      li    $a0, 16
     li    $at, -2049
     b     .L8032692C
      and   $s0, $s0, $at
+.endif
 glabel L803269B8
-    lui   $s1, %hi(D_A4300008) # $s1, 0xa430
-    lw    $s1, %lo(D_A4300008)($s1)
+.ifdef VERSION_EU
+    lui   $t0, %hi(D_8030208C)
+    addiu $t0, %lo(D_8030208C)
+    lw    $t0, ($t0)
+.endif
+    lui   $s1, %hi(MI_INTR_REG)
+    lw    $s1, %lo(MI_INTR_REG)($s1)
+.ifdef VERSION_EU
+    srl   $t0, $t0, 0x10
+    and   $s1, $s1, $t0
+.else
     andi  $s1, $s1, 0x3f
+.endif
     andi  $t1, $s1, 1
     beqz  $t1, .L80326A18
      nop
-    lui   $t4, %hi(D_A4040010) # $t4, 0xa404
-    lw    $t4, %lo(D_A4040010)($t4)
+    lui   $t4, %hi(SP_STATUS_REG)
+    lw    $t4, %lo(SP_STATUS_REG)($t4)
     li    $t1, 8
-    lui   $at, %hi(D_A4040010) # $at, 0xa404
+    lui   $at, %hi(SP_STATUS_REG)
     andi  $t4, $t4, 0x300
     andi  $s1, $s1, 0x3e
     beqz  $t4, .L80326A08
-     sw    $t1, %lo(D_A4040010)($at)
+     sw    $t1, %lo(SP_STATUS_REG)($at)
     jal   send_mesg
      li    $a0, 32
     beqz  $s1, .L80326ADC
@@ -242,9 +341,9 @@ glabel L803269B8
 .L80326A18:
     andi  $t1, $s1, 8
     beqz  $t1, .L80326A3C
-     lui   $at, %hi(D_A4400010) # $at, 0xa440
+     lui   $at, %hi(VI_CURRENT_REG)
     andi  $s1, $s1, 0x37
-    sw    $zero, %lo(D_A4400010)($at)
+    sw    $zero, %lo(VI_CURRENT_REG)($at)
     jal   send_mesg
      li    $a0, 56
     beqz  $s1, .L80326ADC
@@ -254,9 +353,9 @@ glabel L803269B8
     beqz  $t1, .L80326A68
      nop
     li    $t1, 1
-    lui   $at, %hi(D_A450000C) # $at, 0xa450
+    lui   $at, %hi(AI_STATUS_REG)
     andi  $s1, $s1, 0x3b
-    sw    $t1, %lo(D_A450000C)($at)
+    sw    $t1, %lo(AI_STATUS_REG)($at)
     jal   send_mesg
      li    $a0, 48
     beqz  $s1, .L80326ADC
@@ -264,9 +363,9 @@ glabel L803269B8
 .L80326A68:
     andi  $t1, $s1, 2
     beqz  $t1, .L80326A8C
-     lui   $at, %hi(D_A4800018) # $at, 0xa480
+     lui   $at, %hi(SI_STATUS_REG)
     andi  $s1, $s1, 0x3d
-    sw    $zero, %lo(D_A4800018)($at)
+    sw    $zero, %lo(SI_STATUS_REG)($at)
     jal   send_mesg
      li    $a0, 40
     beqz  $s1, .L80326ADC
@@ -276,9 +375,9 @@ glabel L803269B8
     beqz  $t1, .L80326AB8
      nop
     li    $t1, 2
-    lui   $at, %hi(D_A4600010) # $at, 0xa460
+    lui   $at, %hi(PI_STATUS_REG)
     andi  $s1, $s1, 0x2f
-    sw    $t1, %lo(D_A4600010)($at)
+    sw    $t1, %lo(PI_STATUS_REG)($at)
     jal   send_mesg
      li    $a0, 64
     beqz  $s1, .L80326ADC
@@ -288,9 +387,9 @@ glabel L803269B8
     beqz  $t1, .L80326ADC
      nop
     li    $t1, 2048
-    lui   $at, %hi(D_A4300000)
+    lui   $at, %hi(MI_MODE_REG)
     andi  $s1, $s1, 0x1f
-    sw    $t1, %lo(D_A4300000)($at)
+    sw    $t1, %lo(MI_MODE_REG)($at)
     jal   send_mesg
      li    $a0, 72
 .L80326ADC:
@@ -300,10 +399,10 @@ glabel L803269B8
 glabel L80326AE8
     lw    $k1, 0x118($k0)
     li    $at, -4097
-    lui   $t1, %hi(D_80334808) # $t1, 0x8033
+    lui   $t1, %hi(D_80334808)
     and   $k1, $k1, $at
     sw    $k1, 0x118($k0)
-    addiu $t1, %lo(D_80334808) # addiu $t1, $t1, 0x4808
+    addiu $t1, %lo(D_80334808)
     lw    $t2, ($t1)
     beqz  $t2, .L80326B14
      li    $at, -4097
@@ -314,8 +413,8 @@ glabel L80326AE8
     sw    $t2, ($t1)
     jal   send_mesg
      li    $a0, 112
-    lui   $t2, %hi(D_80334898) # $t2, 0x8033
-    lw    $t2, %lo(D_80334898)($t2)
+    lui   $t2, %hi(D_80334890 + 0x8)
+    lw    $t2, %lo(D_80334890 + 0x8)($t2)
     li    $at, -4097
     and   $s0, $s0, $at
     lw    $k1, 0x118($t2)
@@ -347,25 +446,26 @@ glabel L80326B64
      li    $a0, 80
     b     .L80326B9C
      nop
+
 .L80326B9C:
 glabel L80326B9C
-    lui   $t2, %hi(D_80334898) # $t2, 0x8033
-    lw    $t2, %lo(D_80334898)($t2)
+    lui   $t2, %hi(D_80334890 + 0x8)
+    lw    $t2, %lo(D_80334890 + 0x8)($t2)
     lw    $t1, 4($k0)
     lw    $t3, 4($t2)
     slt   $at, $t1, $t3
     beqz  $at, .L80326BD0
      nop
-    lui   $a0, %hi(D_80334898) # $a0, 0x8033
+    lui   $a0, %hi(D_80334890 + 0x8)
     move  $a1, $k0
     jal   __osEnqueueThread
-     addiu $a0, %lo(D_80334898) # addiu $a0, $a0, 0x4898
+     addiu $a0, %lo(D_80334890 + 0x8)
     j     __osDispatchThread
      nop
 
 .L80326BD0:
-    lui   $t1, %hi(D_80334898) # $t1, 0x8033
-    addiu $t1, %lo(D_80334898) # addiu $t1, $t1, 0x4898
+    lui   $t1, %hi(D_80334890 + 0x8)
+    addiu $t1, %lo(D_80334890 + 0x8)
     lw    $t2, ($t1)
     sw    $t2, ($k0)
     j     __osDispatchThread
@@ -373,8 +473,8 @@ glabel L80326B9C
 
 .L80326BE8:
 glabel L80326BE8
-    lui   $at, %hi(D_803348A4) # $at, 0x8033
-    sw    $k0, %lo(D_803348A4)($at)
+    lui   $at, %hi(D_80334890 + 0x14)
+    sw    $k0, %lo(D_80334890 + 0x14)($at)
     li    $t1, 1
     sh    $t1, 0x10($k0)
     li    $t1, 2
@@ -387,8 +487,8 @@ glabel L80326BE8
      nop
 
 glabel send_mesg
-    lui   $t2, %hi(D_80363830) # $t2, 0x8036
-    addiu $t2, %lo(D_80363830) # addiu $t2, $t2, 0x3830
+    lui   $t2, %hi(D_80363830)
+    addiu $t2, %lo(D_80363830)
     addu  $t2, $t2, $a0
     lw    $t1, ($t2)
     move  $s2, $ra
@@ -428,10 +528,10 @@ glabel send_mesg
     jal   __osPopThread
      move  $a0, $t1
     move  $t2, $v0
-    lui   $a0, %hi(D_80334898) # $a0, 0x8033
+    lui   $a0, %hi(D_80334890 + 0x8)
     move  $a1, $t2
     jal   __osEnqueueThread
-     addiu $a0, %lo(D_80334898) # addiu $a0, $a0, 0x4898
+     addiu $a0, %lo(D_80334890 + 0x8)
 .L80326CC4:
     jr    $s2
      nop
@@ -452,8 +552,8 @@ glabel send_mesg
 
 
 glabel __osEnqueueAndYield
-    lui   $a1, %hi(D_803348A0) # $a1, 0x8033
-    lw    $a1, %lo(D_803348A0)($a1)
+    lui   $a1, %hi(D_80334890 + 0x10)
+    lw    $a1, %lo(D_80334890 + 0x10)($a1)
     mfc0  $t0, $12
     lw    $k1, 0x18($a1)
     ori   $t0, $t0, 2
@@ -480,9 +580,44 @@ glabel __osEnqueueAndYield
     sdc1  $f28, 0x1a0($a1)
     sdc1  $f30, 0x1a8($a1)
     sw    $k1, 0x12c($a1)
+
 .L80326D70:
-    lui   $k1, %hi(D_A430000C) # $k1, 0xa430
-    lw    $k1, %lo(D_A430000C)($k1)
+.ifdef VERSION_EU
+    lw    $k1, 0x118($a1)
+    andi  $t1, $k1, 0xff00
+    beqz  $t1, .L802F3FBC
+     nop
+    lui   $t0, %hi(D_8030208C)
+    addiu $t0, %lo(D_8030208C)
+    lw    $t0, ($t0)
+    li    $at, -1
+    xor   $t0, $t0, $at
+    lui   $at, (0xFFFF00FF >> 16)
+    andi  $t0, $t0, 0xff00
+    ori   $at, (0xFFFF00FF & 0xFFFF)
+    or    $t1, $t1, $t0
+    and   $k1, $k1, $at
+    or    $k1, $k1, $t1
+    sw    $k1, 0x118($a1)
+.L802F3FBC:
+.endif
+    lui   $k1, %hi(MI_INTR_MASK_REG)
+    lw    $k1, %lo(MI_INTR_MASK_REG)($k1)
+.ifdef VERSION_EU
+    beqz  $k1, .L802F3FF4
+     nop
+    lui   $k0, %hi(D_8030208C)
+    addiu $k0, %lo(D_8030208C)
+    lw    $k0, ($k0)
+    lw    $t0, 0x128($a1)
+    li    $at, -1
+    srl   $k0, $k0, 0x10
+    xor   $k0, $k0, $at
+    andi  $k0, $k0, 0x3f
+    and   $k0, $k0, $t0
+    or    $k1, $k1, $k0
+.L802F3FF4:
+.endif
     beqz  $a0, .L80326D88
      sw    $k1, 0x128($a1)
     jal   __osEnqueueThread
@@ -490,7 +625,6 @@ glabel __osEnqueueAndYield
 .L80326D88:
     j     __osDispatchThread
      nop
-
 
 #enqueue and pop look like compiled functions?  but there's no easy way to extract them
 glabel __osEnqueueThread
@@ -522,14 +656,28 @@ glabel __osPopThread
      sw    $t9, ($a0)
 
 glabel __osDispatchThread
-    lui   $a0, %hi(D_80334898) # $a0, 0x8033
+    lui   $a0, %hi(D_80334890 + 0x8)
     jal   __osPopThread
-     addiu $a0, %lo(D_80334898) # addiu $a0, $a0, 0x4898
-    lui   $at, %hi(D_803348A0) # $at, 0x8033
-    sw    $v0, %lo(D_803348A0)($at)
+     addiu $a0, %lo(D_80334890 + 0x8)
+    lui   $at, %hi(D_80334890 + 0x10)
+    sw    $v0, %lo(D_80334890 + 0x10)($at)
     li    $t0, 4
     sh    $t0, 0x10($v0)
     move  $k0, $v0
+.ifdef VERSION_EU
+    lui   $t0, %hi(D_8030208C)
+    lw    $k1, 0x118($k0)
+    addiu $t0, %lo(D_8030208C)
+    lw    $t0, ($t0)
+    lui   $at, (0xFFFF00FF >> 16)
+    andi  $t1, $k1, 0xff00
+    ori   $at, (0xFFFF00FF & 0xFFFF)
+    andi  $t0, $t0, 0xff00
+    and   $t1, $t1, $t0
+    and   $k1, $k1, $at
+    or    $k1, $k1, $t1
+    mtc0  $k1, $12
+.endif
 .L80326E08:
     ld    $k1, 0x108($k0)
     ld    $at, 0x20($k0)
@@ -566,8 +714,10 @@ glabel __osDispatchThread
     ld    $ra, 0x100($k0)
     lw    $k1, 0x11c($k0)
     mtc0  $k1, $14
+.ifndef VERSION_EU
     lw    $k1, 0x118($k0)
     mtc0  $k1, $12
+.endif
     lw    $k1, 0x18($k0)
     beqz  $k1, .L80326EF0
      nop
@@ -591,13 +741,20 @@ glabel __osDispatchThread
     ldc1  $f30, 0x1a8($k0)
 .L80326EF0:
     lw    $k1, 0x128($k0)
+.ifdef VERSION_EU
+    lui   $k0, %hi(D_8030208C)
+    addiu $k0, %lo(D_8030208C)
+    lw    $k0, ($k0)
+    srl   $k0, $k0, 0x10
+    and   $k1, $k1, $k0
+.endif
     sll   $k1, $k1, 1
-    lui   $k0, %hi(D_803386D0) # $k0, 0x8034
-    addiu $k0, %lo(D_803386D0) # addiu $k0, $k0, -0x7930
+    lui   $k0, %hi(D_803386D0)
+    addiu $k0, %lo(D_803386D0)
     addu  $k1, $k1, $k0
     lhu   $k1, ($k1)
-    lui   $k0, %hi(D_A430000C) # $k0, 0xa430
-    addiu $k0, %lo(D_A430000C) # addiu $k0, $k0, 0xc
+    lui   $k0, %hi(MI_INTR_MASK_REG)
+    addiu $k0, %lo(MI_INTR_MASK_REG)
     sw    $k1, ($k0)
     nop
     nop
@@ -624,8 +781,6 @@ glabel D_80334938
     .word 0
     .word 0
 
-
-
 .section .rodata
 
 glabel D_80338610
@@ -638,8 +793,13 @@ glabel jtbl_80338630
     .word L803269B8
     .word L80326984
     .word L80326AE8
+.ifdef VERSION_EU
+    .word L802F3B28
+    .word L802F3B34
+.else
     .word L80326BE8
     .word L80326BE8
+.endif
     .word L80326964
     .word 0
     .word 0

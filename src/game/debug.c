@@ -1,17 +1,18 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
-#include "engine/behavior_script.h"
-#include "object_helpers.h"
-#include "audio/external.h"
-#include "print.h"
-#include "engine/surface_collision.h"
-#include "mario.h"
-#include "game.h"
-#include "main.h"
+#include "behavior_data.h"
 #include "debug.h"
+#include "engine/behavior_script.h"
+#include "engine/surface_collision.h"
+#include "game_init.h"
+#include "main.h"
+#include "object_constants.h"
+#include "object_fields.h"
+#include "object_helpers.h"
 #include "object_list_processor.h"
-#include "room.h"
+#include "print.h"
+#include "sm64.h"
+#include "types.h"
 
 #define DEBUG_INFO_NOFLAGS (0 << 0)
 #define DEBUG_INFO_FLAG_DPRINT (1 << 0)
@@ -29,10 +30,6 @@ enum DebugPrintStateInfo {
     DEBUG_PSTATE_MAX_X_CURSOR,
     DEBUG_PSTATE_LINE_Y_OFFSET
 };
-
-extern u8 bhvKoopaShell[];
-extern u8 bhvJumpingBox[];
-extern u8 bhvKoopaShellUnderwater[];
 
 // DEBUG_SYS_EFFECTINFO
 const char *sDebugEffectStringInfo[] = {
@@ -61,16 +58,16 @@ s8 sDebugInfoButtonSeqID = 0;
 s16 sDebugInfoButtonSeq[] = { U_CBUTTONS, L_CBUTTONS, D_CBUTTONS, R_CBUTTONS, -1 };
 
 // most likely present in an ifdef DEBUG build. TODO: check DD version?
-void Stub802C9890(void) {
+void stub_debug_1(void) {
 }
 
-void Stub802C98A0(void) {
+void stub_debug_2(void) {
 }
 
-void Stub802C98B0(void) {
+void stub_debug_3(void) {
 }
 
-void Stub802C98C0(void) {
+void stub_debug_4(void) {
 }
 
 /*
@@ -79,13 +76,13 @@ void Stub802C98C0(void) {
  * its difference for consecutive calls.
  */
 s64 get_current_clock(void) {
-    u64 wtf = 0;
+    s64 wtf = 0;
 
     return wtf;
 }
 
 s64 get_clock_difference(UNUSED s64 arg0) {
-    u64 wtf = 0;
+    s64 wtf = 0;
 
     return wtf;
 }
@@ -208,7 +205,7 @@ void print_mapinfo(void) {
     struct Surface *pfloor;
     UNUSED f32 bgY;
     UNUSED f32 water;
-    // s32 area;
+    UNUSED s32 area;
     // s32 angY;
     //
     // angY = gCurrentObject->oMoveAngleYaw / 182.044000;
@@ -395,7 +392,10 @@ static void try_change_debug_page(void) {
  * sDebugSysCursor. This is used to adjust enemy and effect behaviors
  * on the fly. (unused)
  */
-static void try_modify_debug_controls(void) {
+#ifndef VERSION_SH
+static
+#endif
+void try_modify_debug_controls(void) {
     s32 sp4;
 
     if (gPlayer1Controller->buttonPressed & Z_TRIG) {
@@ -440,7 +440,7 @@ static void try_modify_debug_controls(void) {
 }
 
 // possibly a removed debug control (TODO: check DD)
-void stub_802CA5D0(void) {
+void stub_debug_5(void) {
 }
 
 /*
@@ -525,7 +525,11 @@ void try_do_mario_debug_object_spawn(void) {
 }
 
 // TODO: figure out what this is
-static void Unknown802CA8B4(void) {
+#ifndef VERSION_SH
+static
+#endif
+void debug_print_obj_move_flags(void) {
+#ifndef VERSION_EU // TODO: Is there a better way to diff this? static EU doesn't seem to work.
     if (gCurrentObject->oMoveFlags & OBJ_MOVE_LANDED) {
         print_debug_top_down_objectinfo("BOUND   %x", gCurrentObject->oMoveFlags);
     }
@@ -550,13 +554,14 @@ static void Unknown802CA8B4(void) {
     if (gCurrentObject->oMoveFlags & OBJ_MOVE_IN_AIR) {
         print_debug_top_down_objectinfo("SKY     %x", gCurrentObject->oMoveFlags);
     }
-    if (gCurrentObject->oMoveFlags & OBJ_MOVE_8) {
+    if (gCurrentObject->oMoveFlags & OBJ_MOVE_OUT_SCOPE) {
         print_debug_top_down_objectinfo("OUT SCOPE %x", gCurrentObject->oMoveFlags);
     }
+#endif
 }
 
 // unused, what is this?
-void Unknown802CAA84(s16 *enemyArr) {
+void debug_enemy_unknown(s16 *enemyArr) {
     // copy b1-b4 over to an unknown s16 array
     enemyArr[4] = gDebugInfo[DEBUG_PAGE_ENEMYINFO][1];
     enemyArr[5] = gDebugInfo[DEBUG_PAGE_ENEMYINFO][2];

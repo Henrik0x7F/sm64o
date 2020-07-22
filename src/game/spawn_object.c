@@ -1,17 +1,17 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
-#include "engine/math_util.h"
-#include "area.h"
+#include "audio/external.h"
 #include "engine/geo_layout.h"
 #include "engine/graph_node.h"
-#include "object_helpers.h"
-#include "engine/behavior_script.h"
+#include "engine/math_util.h"
 #include "engine/surface_collision.h"
-#include "audio/external.h"
-#include "level_update.h"
-#include "spawn_object.h"
+#include "level_table.h"
+#include "object_constants.h"
+#include "object_fields.h"
+#include "object_helpers.h"
 #include "object_list_processor.h"
+#include "spawn_object.h"
+#include "types.h"
 
 /**
  * An unused linked list struct that seems to have been replaced by ObjectNode.
@@ -26,8 +26,8 @@ struct LinkedList {
  * a list, and return this list in pFreeList.
  * Appears to have been replaced by init_free_object_list.
  */
-static void unused_init_free_list(struct LinkedList *usedList, struct LinkedList **pFreeList,
-                                  struct LinkedList *pool, s32 itemSize, s32 poolLength) {
+void unused_init_free_list(struct LinkedList *usedList, struct LinkedList **pFreeList,
+                           struct LinkedList *pool, s32 itemSize, s32 poolLength) {
     s32 i;
     struct LinkedList *node = pool;
 
@@ -53,8 +53,8 @@ static void unused_init_free_list(struct LinkedList *usedList, struct LinkedList
  * freeList is empty.
  * Appears to have been replaced by try_allocate_object.
  */
-static struct LinkedList *unused_try_allocate(struct LinkedList *destList,
-                                              struct LinkedList *freeList) {
+struct LinkedList *unused_try_allocate(struct LinkedList *destList,
+                                       struct LinkedList *freeList) {
     struct LinkedList *node = freeList->next;
 
     if (node != NULL) {
@@ -76,7 +76,7 @@ static struct LinkedList *unused_try_allocate(struct LinkedList *destList,
  * to the end of destList (doubly linked). Return the object, or NULL if
  * freeList is empty.
  */
-static struct Object *try_allocate_object(struct ObjectNode *destList, struct ObjectNode *freeList) {
+struct Object *try_allocate_object(struct ObjectNode *destList, struct ObjectNode *freeList) {
     struct ObjectNode *nextObj;
 
     if ((nextObj = freeList->next) != NULL) {
@@ -103,7 +103,7 @@ static struct Object *try_allocate_object(struct ObjectNode *destList, struct Ob
  * singly linked freeList.
  * This function seems to have been replaced by deallocate_object.
  */
-static void unused_deallocate(struct LinkedList *freeList, struct LinkedList *node) {
+void unused_deallocate(struct LinkedList *freeList, struct LinkedList *node) {
     // Remove from doubly linked list
     node->next->prev = node->prev;
     node->prev->next = node->next;
@@ -112,7 +112,6 @@ static void unused_deallocate(struct LinkedList *freeList, struct LinkedList *no
     node->next = freeList->next;
     freeList->next = node;
 }
-
 /**
  * Remove the given object from the object list that it's currently in, and
  * insert it at the beginning of the free list (singly linked).
@@ -187,7 +186,7 @@ static void unused_delete_leaf_nodes(struct Object *obj) {
  * Free the given object.
  */
 void unload_object(struct Object *obj) {
-    obj->activeFlags = ACTIVE_FLAGS_DEACTIVATED;
+    obj->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     obj->prevObj = NULL;
 
     obj->header.gfx.throwMatrix = NULL;
@@ -206,7 +205,7 @@ void unload_object(struct Object *obj) {
  * an unimportant object if necessary. If this is not possible, hang using an
  * infinite loop.
  */
-static struct Object *allocate_object(struct ObjectNode *objList) {
+struct Object *allocate_object(struct ObjectNode *objList) {
     s32 i;
     struct Object *obj = try_allocate_object(objList, &gFreeObjectList);
 
@@ -243,20 +242,26 @@ static struct Object *allocate_object(struct ObjectNode *objList) {
     obj->collidedObjInteractTypes = 0;
     obj->numCollidedObjs = 0;
 
+#if IS_64_BIT
     for (i = 0; i < 0x50; i++) {
-        obj->rawData.asU32[i] = 0;
+        obj->rawData.asS32[i] = 0;
+        obj->ptrData.asVoidPtr[i] = NULL;
     }
+#else
+    // -O2 needs everything until = on the same line
+    for (i = 0; i < 0x50; i++) obj->rawData.asS32[i] = 0;
+#endif
 
-    obj->unk1C8 = 0;
-    obj->stackIndex = 0;
-    obj->unk1F4 = 0;
+    obj->unused1 = 0;
+    obj->bhvStackIndex = 0;
+    obj->bhvDelayTimer = 0;
 
     obj->hitboxRadius = 50.0f;
     obj->hitboxHeight = 100.0f;
     obj->hurtboxRadius = 0.0f;
     obj->hurtboxHeight = 0.0f;
     obj->hitboxDownOffset = 0.0f;
-    obj->unk210 = 0;
+    obj->unused2 = 0;
 
     obj->platform = NULL;
     obj->collisionData = NULL;
@@ -289,8 +294,7 @@ static struct Object *allocate_object(struct ObjectNode *objList) {
 }
 
 /**
- * If the object is close to being on the floor, move it to be exactly on the
- * floor.
+ * If the object is close to being on the floor, move it to be exactly on the floor.
  */
 static void snap_object_to_floor(struct Object *obj) {
     struct Surface *surface;
@@ -304,19 +308,18 @@ static void snap_object_to_floor(struct Object *obj) {
 }
 
 /**
- * Spawn an object at the origin with the behavior script at virtual address
- * behScript.
+ * Spawn an object at the origin with the behavior script at virtual address bhvScript.
  */
-struct Object *create_object(u32 *behScript) {
+struct Object *create_object(const BehaviorScript *bhvScript) {
     s32 objListIndex;
     struct Object *obj;
     struct ObjectNode *objList;
-    void *behavior = (void *) behScript;
+    const BehaviorScript *behavior = bhvScript;
 
     // If the first behavior script command is "begin <object list>", then
     // extract the object list from it
-    if ((behScript[0] >> 24) == 0) {
-        objListIndex = (behScript[0] >> 16) & 0xFFFF;
+    if ((bhvScript[0] >> 24) == 0) {
+        objListIndex = (bhvScript[0] >> 16) & 0xFFFF;
     } else {
         objListIndex = OBJ_LIST_DEFAULT;
     }
@@ -324,7 +327,7 @@ struct Object *create_object(u32 *behScript) {
     objList = &gObjectLists[objListIndex];
     obj = allocate_object(objList);
 
-    obj->behScript = behScript;
+    obj->curBhvCommand = bhvScript;
     obj->behavior = behavior;
 
     if (objListIndex == OBJ_LIST_UNIMPORTANT) {
@@ -353,6 +356,6 @@ struct Object *create_object(u32 *behScript) {
  * Mark an object to be unloaded at the end of the frame.
  */
 void mark_obj_for_deletion(struct Object *obj) {
-    //! Same issue as mark_object_for_deletion
-    obj->activeFlags = ACTIVE_FLAGS_DEACTIVATED;
+    //! Same issue as obj_mark_for_deletion
+    obj->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 }

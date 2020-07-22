@@ -1,13 +1,12 @@
-#ifndef _SPAWN_OBJECT_H
-#define _SPAWN_OBJECT_H
+#ifndef SPAWN_OBJECT_H
+#define SPAWN_OBJECT_H
 
-struct ObjectNode;
-struct Object;
+#include "types.h"
 
 void init_free_object_list(void);
 void clear_object_lists(struct ObjectNode *objLists);
 void unload_object(struct Object *obj);
-struct Object *create_object(u32 *behScript);
+struct Object *create_object(const BehaviorScript *bhvScript);
 void mark_obj_for_deletion(struct Object *obj);
 
-#endif /* _SPAWN_OBJECT_H */
+#endif // SPAWN_OBJECT_H

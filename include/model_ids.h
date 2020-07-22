@@ -1,7 +1,18 @@
-#ifndef _MODEL_IDS_H
-#define _MODEL_IDS_H
+#ifndef MODEL_IDS_H
+#define MODEL_IDS_H
 
-// Don't worry about formatting here, this file should be deleted and replaced with model_ids.inc.
+#define ACT_1 (1 << 0)
+#define ACT_2 (1 << 1)
+#define ACT_3 (1 << 2)
+#define ACT_4 (1 << 3)
+#define ACT_5 (1 << 4)
+#define ACT_6 (1 << 5)
+
+// If an object is set as active for the first 5 acts only, it is treated as always active.
+// It's possible that there were only planned to be 5 acts per level early in development.
+// Hence, they added a macro so they wouldn't have to change the acts for every object.
+#define ALL_ACTS_MACRO ACT_1 | ACT_2 | ACT_3 | ACT_4 | ACT_5
+#define ALL_ACTS       ACT_1 | ACT_2 | ACT_3 | ACT_4 | ACT_5 | ACT_6
 
 #define COIN_FORMATION_FLAG_VERTICAL  (1 << 0)
 #define COIN_FORMATION_FLAG_RING      (1 << 1)
@@ -350,7 +361,7 @@
 // group 5
 #define MODEL_POKEY_HEAD                  0x54        // pokey_head_geo
 #define MODEL_POKEY_BODY_PART             0x55        // pokey_body_part_geo
-#define MODEL_TORNADO                     0x56        // tornado_seg5_geo_05014630
+#define MODEL_TWEESTER                    0x56        // tweester_geo
 #define MODEL_KLEPTO                      0x57        // klepto_geo
 #define MODEL_EYEROK_LEFT_HAND            0x58        // eyerok_left_hand_geo
 #define MODEL_EYEROK_RIGHT_HAND           0x59        // eyerok_right_hand_geo
@@ -389,8 +400,8 @@
 #define MODEL_ENEMY_LAKITU                0x54        // enemy_lakitu_geo
 #define MODEL_SPINY_BALL                  0x55        // spiny_ball_geo
 #define MODEL_SPINY                       0x56        // spiny_geo
-#define MODEL_WIGGLER                     0x57        // wiggler_geo
-#define MODEL_WIGGLER_BODY_PART           0x58        // wiggler_body_part_geo
+#define MODEL_WIGGLER_HEAD                0x57        // wiggler_head_geo
+#define MODEL_WIGGLER_BODY                0x58        // wiggler_body_geo
 #define MODEL_BUBBA                       0x59        // bubba_geo
 
 // referenced in macro presets. Unknown usage.
@@ -488,10 +499,10 @@
 #define MODEL_WHITE_PARTICLE              0xA0        // white_particle_dl
 #define MODEL_PEBBLE                      0xA1        // pebble_seg3_dl_0301CB00
 #define MODEL_LEAVES                      0xA2        // leaves_geo
-#define MODEL_WATER_WAVES                 0xA3        // water_waves_geo
+#define MODEL_WAVE_TRAIL                  0xA3        // wave_trail_geo
 #define MODEL_WHITE_PARTICLE_SMALL        0xA4        // white_particle_small_dl
-#define MODEL_SPOT_ON_GROUND              0xA5        // spot_on_ground_geo
-#define MODEL_WATER_WAVES_SURF            0xA6        // water_waves_surface_geo
+#define MODEL_SMALL_WATER_SPLASH          0xA5        // small_water_splash_geo
+#define MODEL_IDLE_WATER_WAVE             0xA6        // idle_water_wave_geo
 #define MODEL_WATER_SPLASH                0xA7        // water_splash_geo
 #define MODEL_BUBBLE                      0xA8        // bubble_geo
 // find me
@@ -575,4 +586,4 @@
 #define MODEL_VCUTM_WARP_PIPE                     MODEL_LEVEL_GEOMETRY_16   // warp_pipe_geo
 #define MODEL_CASTLE_GROUNDS_WARP_PIPE            MODEL_LEVEL_GEOMETRY_16   // warp_pipe_geo
 
-#endif
+#endif // MODEL_IDS_H

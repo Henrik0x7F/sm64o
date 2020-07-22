@@ -9,24 +9,24 @@ void bhv_hidden_star_init(void) {
         sp30 =
             spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStar, o->oPosX, o->oPosY, o->oPosZ, 0, 0, 0);
         sp30->oBehParams = o->oBehParams;
-        o->activeFlags = 0;
+        o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
 
-    o->oHiddenStarSecretsCollected = 5 - sp36;
+    o->oHiddenStarTriggerCounter = 5 - sp36;
 }
 
 void bhv_hidden_star_loop(void) {
     switch (o->oAction) {
         case 0:
-            if (o->oHiddenStarSecretsCollected == 5)
+            if (o->oHiddenStarTriggerCounter == 5)
                 o->oAction = 1;
             break;
 
         case 1:
             if (o->oTimer > 2) {
-                func_802F1B84(o->oPosX, o->oPosY, o->oPosZ);
-                func_802A3004();
-                o->activeFlags = 0;
+                spawn_red_coin_cutscene_star(o->oPosX, o->oPosY, o->oPosZ);
+                spawn_mist_particles();
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             }
             break;
     }
@@ -35,40 +35,40 @@ void bhv_hidden_star_loop(void) {
 /* TODO: this is likely not a checkpoint but a Secret */
 void bhv_hidden_star_trigger_loop(void) {
     struct Object *hiddenStar;
-    if (are_objects_collided(o, gMarioObject) == 1) {
-        hiddenStar = obj_nearest_object_with_behavior(bhvHiddenStar);
+    if (obj_check_if_collided_with_object(o, gMarioObject) == 1) {
+        hiddenStar = cur_obj_nearest_object_with_behavior(bhvHiddenStar);
         if (hiddenStar != NULL) {
-            hiddenStar->oHiddenStarSecretsCollected++;
-            if (hiddenStar->oHiddenStarSecretsCollected != 5) {
-                SpawnOrangeNumber(hiddenStar->oHiddenStarSecretsCollected, 0, 0, 0);
+            hiddenStar->oHiddenStarTriggerCounter++;
+            if (hiddenStar->oHiddenStarTriggerCounter != 5) {
+                spawn_orange_number(hiddenStar->oHiddenStarTriggerCounter, 0, 0, 0);
             }
 
 #ifdef VERSION_JP
-            play_sound(SOUND_MENU_STARSOUND, gDefaultSoundArgs);
+            play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
 #else
-            play_sound(SOUND_MENU_COLLECTSECRET
-                           + (((u8) hiddenStar->oHiddenStarSecretsCollected - 1) << 16),
+            play_sound(SOUND_MENU_COLLECT_SECRET
+                           + (((u8) hiddenStar->oHiddenStarTriggerCounter - 1) << 16),
                        gDefaultSoundArgs);
 #endif
         }
 
-        o->activeFlags = 0;
+        o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
 }
 
 void bhv_bowser_course_red_coin_star_loop(void) {
-    D_8036008E = o->oBowserCourseRedCoinStarCoinsCollected;
+    gRedCoinsCollected = o->oHiddenStarTriggerCounter;
     switch (o->oAction) {
         case 0:
-            if (o->oBowserCourseRedCoinStarCoinsCollected == 8)
+            if (o->oHiddenStarTriggerCounter == 8)
                 o->oAction = 1;
             break;
 
         case 1:
             if (o->oTimer > 2) {
-                func_802F1BD4(o->oPosX, o->oPosY, o->oPosZ);
-                func_802A3004();
-                o->activeFlags = 0;
+                spawn_no_exit_star(o->oPosX, o->oPosY, o->oPosZ);
+                spawn_mist_particles();
+                o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             }
             break;
     }

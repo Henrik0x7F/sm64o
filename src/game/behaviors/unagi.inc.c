@@ -14,29 +14,29 @@ struct ObjectHitbox sUnagiHitbox = {
 
 void bhv_unagi_init(void) {
     if (o->oBehParams2ndByte != 1) {
-        o->oUnagiUnkFC = segmented_to_virtual(jrb_seg7_trajectory_unagi_1);
+        o->oPathedStartWaypoint = segmented_to_virtual(jrb_seg7_trajectory_unagi_1);
         if (o->oBehParams2ndByte == 0) {
             o->oFaceAnglePitch = -7600;
         } else {
             o->oAction = 1;
         }
     } else {
-        o->oUnagiUnkFC = segmented_to_virtual(jrb_seg7_trajectory_unagi_2);
+        o->oPathedStartWaypoint = segmented_to_virtual(jrb_seg7_trajectory_unagi_2);
         o->oAction = 3;
         o->oAnimState = 1;
 
         o->oUnagiUnk1B0 = o->oMoveAngleYaw;
     }
 
-    o->oUnagiUnk100 = o->oUnagiUnkFC;
+    o->oPathedPrevWaypoint = o->oPathedStartWaypoint;
 }
 
 void unagi_act_0(void) {
     if (o->oDistanceToMario > 4500.0f && o->oSubAction != 0) {
         o->oAction = 1;
-        o->oPosX = o->oUnagiUnkFC[1];
-        o->oPosY = o->oUnagiUnkFC[2];
-        o->oPosZ = o->oUnagiUnkFC[3];
+        o->oPosX = o->oPathedStartWaypoint->pos[0];
+        o->oPosY = o->oPathedStartWaypoint->pos[1];
+        o->oPosZ = o->oPathedStartWaypoint->pos[2];
     } else if (o->oUnagiUnk1AC < 700.0f) {
         o->oSubAction = 1;
     }
@@ -44,42 +44,42 @@ void unagi_act_0(void) {
 
 void unagi_act_1_4(s32 arg0) {
     if (o->oSoundStateID == 3) {
-        if (obj_check_anim_frame(30)) {
+        if (cur_obj_check_anim_frame(30)) {
             o->oForwardVel = 40.0f;
         }
     } else {
-        if (func_8029F828()) {
-            if (o->oAction != arg0 && (o->oUnagiUnk104 & 0xFF) >= 7) {
-                set_obj_animation_and_sound_state(3);
+        if (cur_obj_check_if_at_animation_end()) {
+            if (o->oAction != arg0 && (o->oPathedPrevWaypointFlags & 0xFF) >= 7) {
+                cur_obj_init_animation_with_sound(3);
             } else {
-                set_obj_animation_and_sound_state(2);
+                cur_obj_init_animation_with_sound(2);
             }
         }
     }
 
-    if (obj_check_anim_frame(6)) {
-        PlaySound2(SOUND_GENERAL_MOVINGWATER);
+    if (cur_obj_check_anim_frame(6)) {
+        cur_obj_play_sound_2(SOUND_GENERAL_MOVING_WATER);
     }
 
-    if (obj_follow_path(0) == -1) {
+    if (cur_obj_follow_path(0) == -1) {
         o->oAction = arg0;
     }
 
     o->oMoveAnglePitch = o->oFaceAnglePitch =
-        approach_s16_symmetric(o->oMoveAnglePitch, o->oUnagiUnk108, 50);
+        approach_s16_symmetric(o->oMoveAnglePitch, o->oPathedTargetPitch, 50);
 
-    obj_rotate_yaw_toward(o->oUnagiUnk10C, 120);
-    obj_roll_to_match_yaw_turn(o->oUnagiUnk10C, 0x2000, 100);
+    cur_obj_rotate_yaw_toward(o->oPathedTargetYaw, 120);
+    obj_roll_to_match_yaw_turn(o->oPathedTargetYaw, 0x2000, 100);
 
     obj_forward_vel_approach(10.0f, 0.2f);
-    func_802A2A38();
+    cur_obj_set_pos_via_transform();
 }
 
 void unagi_act_2(void) {
-    o->oUnagiUnk100 = o->oUnagiUnkFC;
-    o->oUnagiUnk104 = 0;
+    o->oPathedPrevWaypoint = o->oPathedStartWaypoint;
+    o->oPathedPrevWaypointFlags = 0;
 
-    obj_set_pos_to_home();
+    cur_obj_set_pos_to_home();
 
     o->oMoveAnglePitch = o->oFaceAnglePitch = 0;
     o->oMoveAngleYaw = o->oFaceAngleYaw = o->oUnagiUnk1B0;
@@ -94,35 +94,35 @@ void unagi_act_2(void) {
 
 void unagi_act_3(void) {
     if (o->oUnagiUnkF4 < 0.0f) {
-        set_obj_animation_and_sound_state(6);
+        cur_obj_init_animation_with_sound(6);
 
         if ((o->oUnagiUnkF4 += 10.0f) > 0.0f) {
             o->oUnagiUnkF4 = 0.0f;
         }
     } else {
         if (o->oUnagiUnkF4 == 0.0f) {
-            set_obj_animation_and_sound_state(6);
+            cur_obj_init_animation_with_sound(6);
 
             if (o->oTimer > 60 && o->oUnagiUnk1AC < 1000.0f) {
-                PlaySound2(SOUND_OBJECT_EEL_2);
+                cur_obj_play_sound_2(SOUND_OBJ_EEL_2);
                 o->oUnagiUnkF8 = o->oUnagiUnk110 = 30.0f;
             } else {
                 o->oUnagiUnk110 = 0.0f;
             }
         } else if (o->oUnagiUnk110 > 0.0f) {
-            if (func_802F92B0(5)) {
+            if (cur_obj_init_anim_and_check_if_end(5)) {
                 o->oUnagiUnk110 = 0.0f;
             }
         } else if (o->oUnagiUnk110 == 0.0f) {
-            set_obj_animation_and_sound_state(0);
-            if (func_8029F828()) {
+            cur_obj_init_animation_with_sound(0);
+            if (cur_obj_check_if_at_animation_end()) {
                 if (o->oUnagiUnk1AC < 1000.0f) {
                     o->oAction = 4;
                     o->oForwardVel = o->oUnagiUnkF8;
-                    set_obj_animation_and_sound_state(1);
+                    cur_obj_init_animation_with_sound(1);
                 } else {
                     o->oUnagiUnk110 = -50.0f;
-                    set_obj_animation_and_sound_state(4);
+                    cur_obj_init_animation_with_sound(4);
                 }
             }
         }
@@ -176,7 +176,7 @@ void bhv_unagi_subobject_loop(void) {
     f32 val04;
 
     if (o->parentObj->oUnagiUnk1B2 == 0) {
-        mark_object_for_deletion(o);
+        obj_mark_for_deletion(o);
     } else {
         val04 = 300.0f * o->oBehParams2ndByte;
 
@@ -190,7 +190,7 @@ void bhv_unagi_subobject_loop(void) {
         if (o->oBehParams2ndByte == -4) {
             if (o->parentObj->oAnimState != 0 && o->oDistanceToMario < 150.0f) {
                 o->oBehParams = o->parentObj->oBehParams;
-                create_star(6833.0f, -3654.0f, 2230.0f);
+                spawn_default_star(6833.0f, -3654.0f, 2230.0f);
                 o->parentObj->oAnimState = 0;
             }
         } else {

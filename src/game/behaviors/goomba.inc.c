@@ -34,9 +34,9 @@ struct GoombaProperties {
  * Properties for regular, huge, and tiny goombas.
  */
 static struct GoombaProperties sGoombaProperties[] = {
-    { 1.5f, SOUND_OBJECT_ENEMYDEATHHIGH, 4000, 1 },
-    { 3.5f, SOUND_OBJECT_ENEMYDEATHLOW, 4000, 2 },
-    { 0.5f, SOUND_OBJECT_ENEMYDEATHHIGH, 1500, 0 },
+    { 1.5f, SOUND_OBJ_ENEMY_DEATH_HIGH, 4000, 1 },
+    { 3.5f, SOUND_OBJ_ENEMY_DEATH_LOW, 4000, 2 },
+    { 0.5f, SOUND_OBJ_ENEMY_DEATH_HIGH, 1500, 0 },
 };
 
 /**
@@ -85,8 +85,7 @@ void bhv_goomba_triplet_spawner_update(void) {
                 0x10000
                 / (((o->oBehParams2ndByte & GOOMBA_TRIPLET_SPAWNER_BP_EXTRA_GOOMBAS_MASK) >> 2) + 3);
 
-            goombaFlag = 1 << 8;
-            for (angle = 0; angle < 0xFFFF; angle += dAngle, goombaFlag <<= 1) {
+            for (angle = 0, goombaFlag = 1 << 8; angle < 0xFFFF; angle += dAngle, goombaFlag <<= 1) {
                 // Only spawn goombas which haven't been killed yet
                 if (!(o->oBehParams & goombaFlag)) {
                     dx = 500.0f * coss(angle);
@@ -116,7 +115,7 @@ void bhv_goomba_init(void) {
     o->oGoombaScale = sGoombaProperties[o->oGoombaSize].scale;
     o->oDeathSound = sGoombaProperties[o->oGoombaSize].deathSound;
 
-    set_object_hitbox(o, &sGoombaHitbox);
+    obj_set_hitbox(o, &sGoombaHitbox);
 
     o->oDrawingDistance = sGoombaProperties[o->oGoombaSize].drawDistance;
     o->oDamageOrCoinValue = sGoombaProperties[o->oGoombaSize].damage;
@@ -128,7 +127,7 @@ void bhv_goomba_init(void) {
  * Enter the jump action and set initial y velocity.
  */
 static void goomba_begin_jump(void) {
-    PlaySound2(SOUND_OBJECT_GOOMBAALERT);
+    cur_obj_play_sound_2(SOUND_OBJ_GOOMBA_ALERT);
     o->oAction = GOOMBA_ACT_JUMP;
     o->oForwardVel = 0.0f;
     o->oVelY = 50.0f / 3.0f * o->oGoombaScale;
@@ -160,7 +159,7 @@ static void goomba_act_walk(void) {
 
     // If walking fast enough, play footstep sounds
     if (o->oGoombaRelativeSpeed > 4.0f / 3.0f) {
-        func_802F9378(2, 17, SOUND_OBJECT_GOOMBAWALK);
+        cur_obj_play_sound_at_anim_range(2, 17, SOUND_OBJ_GOOMBA_WALK);
     }
 
     //! By strategically hitting a wall, steep slope, or another goomba, we can
@@ -199,7 +198,7 @@ static void goomba_act_walk(void) {
                 if (o->oGoombaWalkTimer != 0) {
                     o->oGoombaWalkTimer -= 1;
                 } else {
-                    if (RandomU16() & 3) {
+                    if (random_u16() & 3) {
                         o->oGoombaTargetYaw = obj_random_fixed_turn(0x2000);
                         o->oGoombaWalkTimer = random_linear_offset(100, 100);
                     } else {
@@ -210,7 +209,7 @@ static void goomba_act_walk(void) {
             }
         }
 
-        obj_rotate_yaw_toward(o->oGoombaTargetYaw, 0x200);
+        cur_obj_rotate_yaw_toward(o->oGoombaTargetYaw, 0x200);
     }
 }
 
@@ -248,7 +247,7 @@ static void goomba_act_jump(void) {
     if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
         o->oAction = GOOMBA_ACT_WALK;
     } else {
-        obj_rotate_yaw_toward(o->oGoombaTargetYaw, 0x800);
+        cur_obj_rotate_yaw_toward(o->oGoombaTargetYaw, 0x800);
     }
 }
 
@@ -275,18 +274,18 @@ void bhv_goomba_update(void) {
         // unload
         if (o->parentObj != o) {
             if (o->parentObj->oAction == GOOMBA_TRIPLET_SPAWNER_ACT_UNLOADED) {
-                mark_object_for_deletion(o);
+                obj_mark_for_deletion(o);
             }
         }
 
-        obj_scale(o->oGoombaScale);
+        cur_obj_scale(o->oGoombaScale);
         obj_update_blinking(&o->oGoombaBlinkTimer, 30, 50, 5);
-        obj_update_floor_and_walls();
+        cur_obj_update_floor_and_walls();
 
         if ((animSpeed = o->oForwardVel / o->oGoombaScale * 0.4f) < 1.0f) {
             animSpeed = 1.0f;
         }
-        func_8029ED98(0, animSpeed);
+        cur_obj_init_animation_with_accel_and_sound(0, animSpeed);
 
         switch (o->oAction) {
             case GOOMBA_ACT_WALK:
@@ -311,7 +310,7 @@ void bhv_goomba_update(void) {
             mark_goomba_as_dead();
         }
 
-        obj_move_standard(-78);
+        cur_obj_move_standard(-78);
     } else {
         o->oAnimState = TRUE;
     }
