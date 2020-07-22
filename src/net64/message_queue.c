@@ -3,21 +3,21 @@
 #include "net64/util.h"
 
 
-enum slot_state_t
+enum SlotState
 {
     FREE = 0,
     USED
 };
 
-void create_message_queue(
-    message_queue_t* queue,
-    queue_descriptor_t* descriptor_array,
-    queue_message_t* msg_array,
-    queue_size_t queue_size
+void net64_queue_create(
+    Net64Queue* queue,
+    net64_queue_descriptor_t* descriptor_array,
+    Net64Message* msg_array,
+    net64_queue_size_t queue_size
 )
 {
     /* Clean descriptor array */
-    memset(descriptor_array, 0, sizeof(queue_descriptor_t) * queue_size);
+    memset(descriptor_array, 0, sizeof(net64_queue_descriptor_t) * queue_size);
 
     /* Init indices */
     queue->game_index = 0;
@@ -29,9 +29,9 @@ void create_message_queue(
     queue->message_array = msg_array;
 }
 
-s32 send_message(
-    message_queue_t* queue,
-    queue_message_t* msg
+s32 net64_queue_send(
+    Net64Queue* queue,
+    Net64Message* msg
 )
 {
     /* If next possibly free slot is still in use the queue is currently full */
@@ -57,9 +57,9 @@ s32 send_message(
     return 1;
 }
 
-s32 poll_message(
-    message_queue_t* queue,
-    queue_message_t* msg
+s32 net64_queue_poll(
+    Net64Queue* queue,
+    Net64Message* msg
 )
 {
     /* If the next possibly used slot is empty the queue is currently empty */

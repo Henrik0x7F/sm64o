@@ -6,11 +6,11 @@
 
 enum
 {
-    GAME_MSG_RESERVED = 0,
-    GAME_MSG_LOG_APPEND,   /* Append text to next log message */
-    GAME_MSG_LOG_END,      /* Append text to log message and print it */
+    NET64_GAME_MSG_CUSTOM = 0,
+    NET64_GAME_MSG_LOG_APPEND,   /* Append text to next log message */
+    NET64_GAME_MSG_LOG_END,      /* Append text to log message and print it */
 
-    GAME_MSG_NUM
+    NET64_GAME_MSG_COUNT
 };
 
 #endif

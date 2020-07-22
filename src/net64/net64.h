@@ -26,22 +26,28 @@
 typedef struct
 {
     /* Message queues */
-    message_queue_t receive_queue,
-                    send_queue;
-    queue_descriptor_t receive_queue_descriptors[NET64_RCV_MSG_QUEUE_SIZE],
-                       send_queue_descriptors[NET64_SND_MSG_QUEUE_SIZE];
-    queue_message_t receive_queue_messages[NET64_RCV_MSG_QUEUE_SIZE],
-                    send_queue_messages[NET64_SND_MSG_QUEUE_SIZE];
+    Net64Queue receive_queue,
+               send_queue;
+    net64_queue_descriptor_t receive_queue_descriptors[NET64_RCV_MSG_QUEUE_SIZE],
+                             send_queue_descriptors[NET64_SND_MSG_QUEUE_SIZE];
+    Net64Message receive_queue_messages[NET64_RCV_MSG_QUEUE_SIZE],
+                 send_queue_messages[NET64_SND_MSG_QUEUE_SIZE];
 
     /* Pointer to global entity list */
     struct ObjectNode* object_lists;
-}net64_state_t;
+}Net64State;
 
 
+/* Initialize net64 */
 s32 net64_initialize();
 
+/* Check if net64 is initialized */
 s32 net64_is_initialized();
 
+/* Update net64 */
 void net64_tick();
+
+/* Send data to server (NET64_MSG_DATA_LEN bytes max) */
+s32 net64_send_custom(const u8* data, size_t n);
 
 #endif

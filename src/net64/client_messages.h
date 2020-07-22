@@ -6,9 +6,9 @@
 
 enum
 {
-    CLIENT_MSG_RESERVED = 0,
+    NET64_CLIENT_MSG_RESERVED = 0,
 
-    CLIENT_MSG_NUM
+    NET64_CLIENT_MSG_COUNT
 };
 
 #endif
