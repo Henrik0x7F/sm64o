@@ -21,7 +21,7 @@ typedef struct
     u16 compat_version;
     u16 version;
     message_queue_t* receive_queue,
-    			   * send_queue;
+                   * send_queue;
     struct ObjectNode* object_lists;
 }net64_header_t;
 static net64_header_t net64_header_g;
@@ -93,8 +93,10 @@ void net64_tick()
     /* Poll for incoming messages */
     if(poll_message(&net64_state_g.receive_queue, &msg))
     {
-        
+
     }
+
+    print_text_fmt_int(10, 100, "addr %d", *((u32*)NET64_MAGIC_NUMBER_ADDR));
 
     /* Print debug information about the queue states to the screen */
     print_text_fmt_int(10, 30, "client %d", net64_state_g.receive_queue.client_index);
@@ -105,5 +107,5 @@ void net64_tick()
 
 void write_magic_num()
 {
-	*((u32*)NET64_MAGIC_NUMBER_ADDR) = NET64_MAGIC_NUMBER;
+    *((u32*)NET64_MAGIC_NUMBER_ADDR) = NET64_MAGIC_NUMBER;
 }
